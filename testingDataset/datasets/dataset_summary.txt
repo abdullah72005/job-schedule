@@ -1,0 +1,31 @@
+Job Schedule Datasets Summary (Jobs with Sequential Tasks)
+============================================================
+
+SMALL Dataset (small_dataset.csv):
+- Machines: 2-5 (random)
+- Jobs: 3-8 (random)
+- Tasks per job: 2-5 (random)
+- Task execution time range: 5-60 minutes
+
+MEDIUM Dataset (medium_dataset.csv):
+- Machines: 5-12 (random)
+- Jobs: 8-20 (random)
+- Tasks per job: 3-8 (random)
+- Task execution time range: 5-60 minutes
+
+LARGE Dataset (large_dataset.csv):
+- Machines: 10-20 (random)
+- Jobs: 20-50 (random)
+- Tasks per job: 4-10 (random)
+- Task execution time range: 5-60 minutes
+
+CSV Format:
+- job_id: Identifier of the job this task belongs to
+- task_id: Unique identifier for each task
+- execution_time: Time required to complete the task (minutes)
+- machines_count: Total number of machines available
+
+Task Dependencies:
+- Tasks within a job are sequentially dependent (implied by task_id ordering)
+- First task of each job has no dependencies (independent)
+- Jobs are independent of each other
