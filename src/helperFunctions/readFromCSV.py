@@ -43,7 +43,7 @@ def read_dataset(size: str) -> Dict[str, Any]:
     }
     
     # Construct file path
-    base_dir = '/home/ali/code/projects/job-schedule/testingDataset/datasets'
+    base_dir = r'D:\code\python\mlAiDs\Aiproject\testingDataset\datasets'
     csv_file_path = os.path.join(base_dir, filename_map[size.lower()])
     
     # Check if file exists
@@ -74,26 +74,35 @@ def read_dataset(size: str) -> Dict[str, Any]:
     except Exception as e:
         raise RuntimeError(f"Error reading CSV file {csv_file_path}: {str(e)}")
     
-    # Organize tasks by job
-    jobs_dict = {}
+    # Organize tasks by job into an array (list of job objects)
+    # First build a temporary map of job_id -> tasks, then convert to a list
+    jobs_map = {}
     for task in tasks_list:
         job_id = task['job_id']
-        if job_id not in jobs_dict:
-            jobs_dict[job_id] = []
-        # Remove redundant job_id from task since it's already the dictionary key
+        if job_id not in jobs_map:
+            jobs_map[job_id] = []
+        # Keep minimal task info inside each job
         clean_task = {
             'task_id': task['task_id'],
             'execution_time': task['execution_time']
         }
-        jobs_dict[job_id].append(clean_task)
-    
-    # Create result dictionary
+        jobs_map[job_id].append(clean_task)
+
+    # Convert the map to a sorted list of jobs (array). Each job is a dict with 'job_id' and 'tasks'.
+    jobs_array = []
+    for job_id in sorted(jobs_map.keys()):
+        jobs_array.append({
+            'job_id': job_id,
+            'tasks': jobs_map[job_id]
+        })
+
+    # Create result dictionary (return jobs as an array)
     result = {
         'machines_count': machines_count,
         'tasks': tasks_list,
-        'jobs': jobs_dict,
+        'jobs': jobs_array,
         'total_tasks': len(tasks_list),
-        'total_jobs': len(jobs_dict),
+        'total_jobs': len(jobs_array),
         'dataset_size': size.lower(),
         'source_file': csv_file_path
     }
