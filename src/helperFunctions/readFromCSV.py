@@ -31,8 +31,9 @@ def read_dataset(size: str) -> Dict[str, Any]:
         FileNotFoundError: If the CSV file doesn't exist
     """
     # Validate input
+    size = size.lower()
     valid_sizes = ['small', 'medium', 'large']
-    if size.lower() not in valid_sizes:
+    if size not in valid_sizes:
         raise ValueError(f"Size must be one of {valid_sizes}, got '{size}'")
     
     # Map size to filename
@@ -42,9 +43,8 @@ def read_dataset(size: str) -> Dict[str, Any]:
         'large': 'large_dataset.csv'
     }
     
-    # Construct file path
-    base_dir = '/home/ali/code/projects/job-schedule/testingDataset/datasets'
-    csv_file_path = os.path.join(base_dir, filename_map[size.lower()])
+    # Construct file path relative to project root
+    csv_file_path = os.path.join('../../testingDataset/datasets', filename_map[size])
     
     # Check if file exists
     if not os.path.exists(csv_file_path):
@@ -80,12 +80,11 @@ def read_dataset(size: str) -> Dict[str, Any]:
         job_id = task['job_id']
         if job_id not in jobs_dict:
             jobs_dict[job_id] = []
-        # Remove redundant job_id from task since it's already the dictionary key
-        clean_task = {
-            'task_id': task['task_id'],
-            'execution_time': task['execution_time']
-        }
-        jobs_dict[job_id].append(clean_task)
+        jobs_dict[job_id].append(task)
+    
+    # Sort tasks within each job by task_id (tasks are numbered 1, 2, 3... within each job)
+    for job_id in jobs_dict:
+        jobs_dict[job_id].sort(key=lambda t: t['task_id'])
     
     # Create result dictionary
     result = {
@@ -94,8 +93,8 @@ def read_dataset(size: str) -> Dict[str, Any]:
         'jobs': jobs_dict,
         'total_tasks': len(tasks_list),
         'total_jobs': len(jobs_dict),
-        'dataset_size': size.lower(),
-        'source_file': csv_file_path
+        'dataset_size': size,
+        'source_file': filename_map[size]
     }
     
     return result
