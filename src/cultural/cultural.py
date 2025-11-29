@@ -80,13 +80,26 @@ class individual(object):
             if not clone['jobs'][job]['tasks']:
                 clone['jobs'].pop(job)
                 clone['total_jobs'] -= 1
-            
+            wait_time = 0
             machine = random.randint(1,clone['machines_count'])
+            if task['task_id'] != 1:
+                last_task_start, last_task_exec = 0,0
+                for machine, lst in timeline.items():
+                    for d in lst:
+                        if (jobId,task['task_id'] - 1) in d:
+                            last_task_start, last_task_exec = d[(jobId,task['task_id'] - 1)]
+                            break
+                prev_start,prev_exec = list(timeline[machine][-1].values())[0]
+                wait_time = (last_task_start + last_task_exec) - (prev_start + prev_exec)
+                if (wait_time < 0): 
+                    wait_time = 0
+            
             if machine not in timeline:
                 timeline[machine] = []
-                timeline[machine].append({ (jobId,task['task_id']) : ( task['execution_time'])  })   
+                timeline[machine].append({ (jobId,task['task_id']) : (0 + wait_time, task['execution_time'])  })   
             else:
-                timeline[machine].append({ (jobId,task['task_id']) : (task['execution_time'])  })
+                prev_start,prev_exec = list(timeline[machine][-1].values())[0]
+                timeline[machine].append({ (jobId,task['task_id']) : (prev_start + prev_exec + wait_time, task['execution_time'])  })
         
         return individual(timeline)
     
@@ -97,8 +110,8 @@ class individual(object):
 
         for key in timeline:  
             for task_dict in timeline[key]:
-                for time in task_dict.values():
-                    total_time[key] += time
+                total_machine_time , total_execution_time = list(timeline[key][-1].values())[0]
+                total_time[key] = total_execution_time + total_machine_time
         fitness = max(total_time.values())
         for i in total_time:
             fitness += max(total_time.values()) - total_time[i]
