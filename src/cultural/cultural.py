@@ -6,7 +6,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 from src.helperFunctions.readFromCSV import read_dataset
 
 goal = read_dataset('large')
-pop_count = 100
+pop_count = 1000
 generations = 50
 
 class belief_space(object):
@@ -17,7 +17,7 @@ class belief_space(object):
             'avg_fitness': 0,
             'machine_load_distribution': {},
             'job_affinity': {}  # Track which jobs perform well on which machines
-        }
+        } 
     
     def update_situational(self, individual):
         """Track the best solution found so far"""
@@ -144,7 +144,7 @@ class individual(object):
                     # Recalculate fitness
                     self.fitness = self.calc_fitness()
         
-    
+        
 
 def main():
     population=[]
