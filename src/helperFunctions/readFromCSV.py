@@ -88,7 +88,7 @@ def read_dataset(size: str) -> Dict[str, Any]:
         }
         jobs_map[job_id].append(clean_task)
 
-    # Convert the map to a sorted list of jobs (array). Each job is an object with 'job_id' and 'tasks'.
+    # Convert the map to a sorted list of jobs (array). Each job is a dict with 'job_id' and 'tasks'.
     jobs_array = []
     for job_id in sorted(jobs_map.keys()):
         jobs_array.append({
