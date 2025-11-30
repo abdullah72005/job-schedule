@@ -521,11 +521,6 @@ class AlgorithmComparisonPage(tk.Frame):
             ("Total Idle Time (ms)", "Pending", "Pending", "TBD"),
             ("Resource Utilization (%)", "Pending", "Pending", "TBD"),
             ("Execution Time (s)", "Pending", "Pending", "TBD"),
-            ("Best Fitness Score", "Pending", "Pending", "TBD"),
-            ("Average Fitness", "Pending", "Pending", "TBD"),
-            ("Convergence Generation", "Pending", "Pending", "TBD"),
-            ("Solution Quality", "Pending", "Pending", "TBD"),
-            ("Memory Usage (MB)", "Pending", "Pending", "TBD"),
         ]
 
         for metric in metrics:
