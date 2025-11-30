@@ -1,4 +1,3 @@
-from ast import Lambda
 import sys
 import os
 import copy
@@ -7,25 +6,23 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 
 from src.helperFunctions.readFromCSV import read_dataset
 data = read_dataset('small')
+print(data)
 
 class backTracking:
     def __init__(self):
         self.machines_count = data['machines_count']
-        self.tasks = data['tasks']
         self.jobs = data['jobs']
         self.total_tasks = data['total_tasks']
         self.total_jobs = data['total_jobs']
         self.timeline = {}
         self.best_timeline = None
         self.best_makespan = float('inf')
+
+        # Analysis counters
+        self.total_idle_time = 0
+        self.machine_utilization = 0
+        self.execution_time = 0
         
-        # Debug counters
-        self.nodes_explored = 0
-        self.backtrack_count = 0
-        self.constraint_checks = 0
-        self.pruned_branches = 0
-        self.solutions_found = 0
-        self.start_time = None
 
     def _checkConstraints(self, task, machine, start_time):
         """
@@ -39,7 +36,6 @@ class backTracking:
         Returns:
             bool: True if constraints are satisfied, False otherwise
         """
-        self.constraint_checks += 1
         job_id = task['job_id']
         task_id = task['task_id']
         execution_time = task['execution_time']
@@ -80,66 +76,62 @@ class backTracking:
         self.best_timeline = None
         self.best_makespan = float('inf')
         
-        # Reset debug counters
-        self.nodes_explored = 0
-        self.backtrack_count = 0
-        self.constraint_checks = 0
-        self.pruned_branches = 0
-        self.solutions_found = 0
+        # Reset analysis counters
         self.start_time = time.time()
         
         print("Starting backtracking search...")
         print(f"Problem size: {self.total_tasks} tasks, {self.total_jobs} jobs, {self.machines_count} machines")
         
-        # Sort tasks intelligently
-        self._sort_tasks()
-        print(f"Task ordering optimized: longest jobs first")
+        # Sort jobs intelligently
+        self._sort_jobs()
+        print(f"Job ordering optimized: longest jobs first")
         
         # Find all possible schedules and keep the best one
-        self._backtrack(0)
+        self._backtrack_jobs(0, 0)
         
-        # Print performance metrics
-        elapsed_time = time.time() - self.start_time
-        self._print_debug_stats(elapsed_time)
-        
-        # Set the best solution as current timeline
+        # Set the best solution as current timeline and calculate analysis metrics
         if self.best_timeline is not None:
             self.timeline = self.best_timeline
+            self.get_metrics()
             return True
         return False
     
-    def _backtrack(self, task_index):
+    def _backtrack_jobs(self, job_index, task_index):
         """
         Recursive backtracking function to find optimal schedule.
-        Explores all possible solutions to minimize makespan.
+        Explores all possible solutions to minimize makespan using job structure.
         
         Args:
-            task_index: Index of current task to schedule in self.tasks
+            job_index: Index of current job in self.jobs
+            task_index: Index of current task within the current job
         """
-        self.nodes_explored += 1
-        
-        # Progress reporting every 10000 nodes
-        if self.nodes_explored % 10000 == 0:
-            elapsed = time.time() - self.start_time
-            pruning_pct = (self.pruned_branches/self.nodes_explored)*100 if self.nodes_explored > 0 else 0
-            print(f"Progress: {self.nodes_explored:,} nodes explored, {self.solutions_found} solutions found, "
-                  f"best makespan: {self.best_makespan}, time: {elapsed:.1f}s, "
-                  f"pruning: {pruning_pct:.1f}%")
-        
-        # Base case: all tasks scheduled successfully
-        if task_index >= len(self.tasks):
+        # Base case: all jobs and tasks scheduled successfully
+        if job_index >= len(self.jobs):
             # Calculate current makespan
             current_makespan = self._calculate_makespan()
-            self.solutions_found += 1
             
             # If this is the best solution so far, save it
             if current_makespan < self.best_makespan:
                 self.best_makespan = current_makespan
                 self.best_timeline = copy.deepcopy(self.timeline)
-                print(f"New best solution found! Makespan: {current_makespan} (Solution #{self.solutions_found})")
+                print(f"New best solution found! Makespan: {current_makespan}")
             return
         
-        current_task = self.tasks[task_index]
+        current_job = self.jobs[job_index]
+        
+        # Check if we've finished all tasks in current job
+        if task_index >= len(current_job['tasks']):
+            # Move to next job
+            self._backtrack_jobs(job_index + 1, 0)
+            return
+        
+        # Get current task from current job
+        current_task_data = current_job['tasks'][task_index]
+        current_task = {
+            'job_id': current_job['job_id'],
+            'task_id': current_task_data['task_id'],
+            'execution_time': current_task_data['execution_time']
+        }
         
         # Get machines ordered by current utilization (least busy first)
         ordered_machines = self._get_machines_by_utilization()
@@ -153,29 +145,26 @@ class backTracking:
             
             # Pruning 1: If this assignment alone exceeds best makespan, skip
             if estimated_end >= self.best_makespan:
-                self.pruned_branches += 1
                 continue
             
             # Pruning 2: If the rest of the tasks where divided evenely and it cannot still improve best makespan then prune branch
-            remaining_tasks = len(self.tasks) - task_index - 1
-            if remaining_tasks > 0:
-                remaining_work = sum(t['execution_time'] for t in self.tasks[task_index + 1:])
-                min_additional_time = remaining_work // self.machines_count
-                if estimated_end + min_additional_time >= self.best_makespan:
-                    self.pruned_branches += 1
-                    continue
+            # remaining_tasks = len(self.tasks) - task_index - 1
+            # if remaining_tasks > 0:
+            #     remaining_work = sum(t['execution_time'] for t in self.tasks[task_index + 1:])
+            #     min_additional_time = remaining_work // self.machines_count
+            #     if estimated_end + min_additional_time >= self.best_makespan:
+            #         continue
                 
             # Check if this assignment satisfies constraints
             if self._checkConstraints(current_task, machine, earliest_start):
                 # Make the assignment
                 self._assign_task(current_task, machine, earliest_start)
                 
-                # Recursively try to schedule remaining tasks
-                self._backtrack(task_index + 1)
+                # Recursively try to schedule next task
+                self._backtrack_jobs(job_index, task_index + 1)
                 
                 # Backtrack: remove the assignment
                 self._remove_task(current_task, machine)
-                self.backtrack_count += 1
     
     def _assign_task(self, task, machine, start_time):
         """Add task to machine's timeline."""
@@ -224,21 +213,16 @@ class backTracking:
         
         return previous_task_end_time
     
-    def _sort_tasks(self):
+    def _sort_jobs(self):
         """
-        1. Group by jobs to maintain dependencies
-        2. Within jobs, keep task order (task_id)  
-        3. Prioritize jobs with longer total execution time first
+        Sort jobs by total execution time (longest first) to improve scheduling efficiency.
+        Tasks within jobs maintain their original order to preserve dependencies.
         """
-        job_totals = {}
-        for task in self.tasks:
-            job_id = task['job_id']
-            if job_id not in job_totals:
-                job_totals[job_id] = 0
-            job_totals[job_id] += task['execution_time']
+        def job_total_time(job):
+            return sum(task['execution_time'] for task in job['tasks'])
         
-        # Sort jobs by total execution time (longest first), then tasks by task_id within each job
-        self.tasks.sort(key=lambda t: (-job_totals[t['job_id']], t['job_id'], t['task_id']))
+        # Sort jobs by total execution time (longest first)
+        self.jobs.sort(key=lambda job: -job_total_time(job))
     
     def _get_machines_by_utilization(self):
         """
@@ -301,24 +285,56 @@ class backTracking:
                 makespan = max(makespan, task['end_time'])
         return makespan
     
-    def _print_debug_stats(self, elapsed_time):
-        """Print debugging statistics about the search process."""
-        print(f"\n=== ALGORITHM PERFORMANCE ===")
-        print(f"Total nodes explored: {self.nodes_explored:,}")
-        print(f"Backtracking operations: {self.backtrack_count:,}")
-        print(f"Constraint checks: {self.constraint_checks:,}")
-        print(f"Pruned branches: {self.pruned_branches:,}")
-        print(f"Complete solutions found: {self.solutions_found:,}")
-        print(f"Search time: {elapsed_time:.2f} seconds")
+    def get_metrics(self):
+        """Calculate the three analysis metrics from the current schedule."""
+        if not self.timeline:
+            return {}
         
-        if self.nodes_explored > 0:
-            print(f"Nodes per second: {self.nodes_explored/elapsed_time:.0f}")
-            print(f"Pruning efficiency: {(self.pruned_branches/self.nodes_explored)*100:.1f}%")
+        # Calculate actual makespan from current timeline (max of all end times)
+        makespan = self._calculate_makespan()
         
-        if self.best_makespan != float('inf'):
-            print(f"Best makespan found: {self.best_makespan}")
-        else:
-            print("No valid solution found")
+        total_machine_utilization = 0
+        total_idle_time = 0
+        
+        for machine_timeline in self.timeline.values():
+            if machine_timeline:
+                # Sort tasks by start time
+                sorted_tasks = sorted(machine_timeline, key=lambda t: t['start_time'])
+                
+                # Calculate machine utilization (how long this machine was working)
+                machine_end_time = max(task['end_time'] for task in machine_timeline)
+                machine_utilization = machine_end_time / makespan
+                total_machine_utilization += machine_utilization
+                
+                # Add gap before first task
+                first_start = sorted_tasks[0]['start_time']
+                total_idle_time += first_start
+                
+                # Add gaps between tasks
+                for i in range(1, len(sorted_tasks)):
+                    prev_end = sorted_tasks[i-1]['end_time']
+                    current_start = sorted_tasks[i]['start_time']
+                    if current_start > prev_end:
+                        total_idle_time += (current_start - prev_end)
+                
+                # Add waiting time after machine finishes until makespan
+                machine_end_time = max(task['end_time'] for task in machine_timeline)
+                if makespan > machine_end_time:
+                    total_idle_time += (makespan - machine_end_time)
+        
+        # Average machine utilization across all machines
+        self.machine_utilization = (total_machine_utilization / self.machines_count)
+        self.total_idle_time = total_idle_time
+        
+        # Calculate execution time (actual algorithm runtime)
+        self.execution_time = time.time() - self.start_time
+        
+        return {
+            'makespan': makespan,
+            'total_idle_time': self.total_idle_time,
+            'machine_utilization': self.machine_utilization,
+            'execution_time': self.execution_time
+        }
     
     def print_schedule(self):
         """Print the current schedule in a readable format."""
@@ -347,12 +363,3 @@ class backTracking:
             
             total_machine_time += machine_end_time
             print(f"  Machine utilization: {machine_end_time} time units")
-        
-        # Calculate metrics
-        makespan = self._calculate_makespan()
-        avg_machine_utilization = total_machine_time / self.machines_count if self.machines_count > 0 else 0
-        
-        print(f"\n=== OPTIMIZATION METRICS ===")
-        print(f"Makespan (total completion time): {makespan} time units")
-        print(f"Average machine utilization: {avg_machine_utilization:.1f} time units")
-        print(f"Resource efficiency: {(avg_machine_utilization/makespan*100):.1f}%" if makespan > 0 else "N/A")
