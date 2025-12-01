@@ -242,13 +242,19 @@ class TaskInputFrame(tk.Frame):
 
         # Bind mouse wheel scroll to canvas
         def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            try:
+                canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            except tk.TclError:
+                pass  # Canvas widget has been destroyed
         
         def _on_mousewheel_linux(event):
-            if event.num == 5:
-                canvas.yview_scroll(3, "units")
-            elif event.num == 4:
-                canvas.yview_scroll(-3, "units")
+            try:
+                if event.num == 5:
+                    canvas.yview_scroll(3, "units")
+                elif event.num == 4:
+                    canvas.yview_scroll(-3, "units")
+            except tk.TclError:
+                pass  # Canvas widget has been destroyed
         
         # Windows and macOS
         canvas.bind_all("<MouseWheel>", _on_mousewheel)

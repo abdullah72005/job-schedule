@@ -8,6 +8,7 @@ import threading
 import time
 from .constants import COLORS, FONTS, PADDING
 from src.cultural.cultural import cultural_algorithm, get_metrics
+from src.backTracking.backTracking import backtracking_algorithm
 
 
 class AlgorithmSelectionPage(tk.Frame):
@@ -379,9 +380,16 @@ class AlgorithmResultsPage(tk.Frame):
                     problem_data, 
                     generation_callback=self._on_generation_update
                 )
+            elif self.algorithm == "backtracking":
+                timeline, makespan, step_history = backtracking_algorithm(
+                    problem_data,
+                    generation_callback=self._on_generation_update
+                )
+                # Convert to fitness-like format for consistency
+                fitness = makespan
+                fitness_history = step_history
             else:
-                # Placeholder for backtracking
-                messagebox.showwarning("Not Implemented", "Backtracking algorithm not yet integrated")
+                messagebox.showerror("Error", f"Unknown algorithm: {self.algorithm}")
                 return
             
             exec_time = time.time() - start_time
@@ -399,9 +407,17 @@ class AlgorithmResultsPage(tk.Frame):
             import traceback
             traceback.print_exc()
 
-    def _on_generation_update(self, generation, fitness):
-        """Callback for generation updates from the algorithm."""
-        self.generation_data.append((generation, fitness))
+    def _on_generation_update(self, step, info):
+        """Callback for generation/step updates from the algorithm."""
+        # Handle both dict info (backtracking) and single fitness value (cultural)
+        if isinstance(info, dict):
+            # Backtracking format
+            fitness = info.get('best_makespan', 'N/A')
+        else:
+            # Cultural algorithm format
+            fitness = info
+        
+        self.generation_data.append((step, fitness))
         # Update UI in main thread
         self.after(0, self._update_generation_display)
 
@@ -448,15 +464,20 @@ GENERATION EVOLUTION
         """Update generation display in real-time."""
         self.stats_text.config(state=tk.NORMAL)
         
+        algo_label = "GENERATIONS" if self.algorithm == "cultural" else "SEARCH PROGRESS"
+        
         stats_content = f"""ALGORITHM: {self.algorithm.upper()}
 {'=' * 40}
 
-GENERATION EVOLUTION
+{algo_label}
 {'=' * 40}
 """
         # Add generation data
-        for gen, fitness in self.generation_data[-10:]:  # Show last 10 generations
-            stats_content += f"Gen {gen:3d}: Fitness = {fitness:.2f}\n"
+        for step, fitness in self.generation_data[-10:]:  # Show last 10 entries
+            if isinstance(fitness, float):
+                stats_content += f"Step {step:5d}: Best = {fitness:.2f}\n"
+            else:
+                stats_content += f"Step {step:5d}: Best = {fitness}\n"
         
         self.stats_text.delete(1.0, tk.END)
         self.stats_text.insert(tk.END, stats_content)
@@ -468,15 +489,20 @@ GENERATION EVOLUTION
         if not self.metrics:
             return
         
+        algo_label = "GENERATIONS" if self.algorithm == "cultural" else "SEARCH PROGRESS"
+        
         stats_content = f"""ALGORITHM: {self.algorithm.upper()}
 {'=' * 40}
 
-GENERATION EVOLUTION
+{algo_label}
 {'=' * 40}
 """
-        # Add all generations
-        for gen, fitness in self.generation_data:
-            stats_content += f"Gen {gen:3d}: Fitness = {fitness:.2f}\n"
+        # Add all generations/steps
+        for step, fitness in self.generation_data:
+            if isinstance(fitness, float):
+                stats_content += f"Step {step:5d}: Best = {fitness:.2f}\n"
+            else:
+                stats_content += f"Step {step:5d}: Best = {fitness}\n"
         
         stats_content += f"""
 {'=' * 40}
@@ -618,8 +644,18 @@ class AlgorithmComparisonPage(tk.Frame):
         self.job_count = job_count
         self.jobs_data = jobs_data
         self.on_back_callback = on_back_callback
+        
+        # Store results
+        self.backtrack_metrics = None
+        self.cultural_metrics = None
+        self.backtrack_timeline = None
+        self.cultural_timeline = None
+        self.is_running = False
+        self.backtrack_thread = None
+        self.cultural_thread = None
 
         self.create_widgets()
+        self.run_comparison()
 
     def create_widgets(self):
         """Create the comparison interface."""
@@ -728,16 +764,18 @@ class AlgorithmComparisonPage(tk.Frame):
         self.comparison_tree.heading("Winner", text="Winner")
         self.comparison_tree.column("Winner", width=100, anchor="center")
 
-        # Add sample rows with better formatting
+        # Initialize with pending status
+        self.metric_rows = {}
         metrics = [
-            ("Makespan (ms)", "Pending", "Pending", "TBD"),
-            ("Total Idle Time (ms)", "Pending", "Pending", "TBD"),
-            ("Resource Utilization (%)", "Pending", "Pending", "TBD"),
-            ("Execution Time (s)", "Pending", "Pending", "TBD"),
+            ("Makespan (ms)", "Running...", "Running...", "..."),
+            ("Total Idle Time (ms)", "Running...", "Running...", "..."),
+            ("Resource Utilization (%)", "Running...", "Running...", "..."),
+            ("Execution Time (s)", "Running...", "Running...", "..."),
         ]
 
-        for metric in metrics:
-            self.comparison_tree.insert("", "end", values=metric)
+        for i, metric in enumerate(metrics):
+            row_id = self.comparison_tree.insert("", "end", values=metric)
+            self.metric_rows[metric[0]] = row_id
 
         # Add scrollbar
         scrollbar = ttk.Scrollbar(table_card, orient="vertical", command=self.comparison_tree.yview)
@@ -745,6 +783,443 @@ class AlgorithmComparisonPage(tk.Frame):
 
         self.comparison_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=10)
+
+        # Gantt charts section
+        gantt_label = tk.Label(
+            self,
+            text="Schedule Visualization - Gantt Charts",
+            font=FONTS['subheader'],
+            bg=COLORS['light_bg'],
+            fg=COLORS['primary_dark']
+        )
+        gantt_label.pack(anchor="w", padx=PADDING['large'], pady=(PADDING['medium'], PADDING['small']))
+
+        gantt_container = tk.Frame(self, bg=COLORS['light_bg'])
+        gantt_container.pack(fill=tk.BOTH, expand=True, padx=PADDING['large'], pady=(0, PADDING['medium']))
+
+        # Left Gantt chart - Backtracking
+        backtrack_frame = tk.Frame(gantt_container, bg='white', relief='solid', borderwidth=1)
+        backtrack_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, PADDING['small']))
+
+        backtrack_title = tk.Label(
+            backtrack_frame,
+            text="Backtracking Schedule",
+            font=FONTS['body'],
+            bg=COLORS['primary'],
+            fg='white'
+        )
+        backtrack_title.pack(fill=tk.X, pady=5)
+
+        self.backtrack_gantt = tk.Canvas(
+            backtrack_frame,
+            bg='white',
+            height=200,
+            relief='flat'
+        )
+        self.backtrack_gantt.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # Add scrollwheel support to backtracking canvas
+        self._setup_canvas_scrollwheel(self.backtrack_gantt, backtrack_frame)
+
+        # Right Gantt chart - Cultural
+        cultural_frame = tk.Frame(gantt_container, bg='white', relief='solid', borderwidth=1)
+        cultural_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(PADDING['small'], 0))
+
+        cultural_title = tk.Label(
+            cultural_frame,
+            text="Cultural Schedule",
+            font=FONTS['body'],
+            bg=COLORS['secondary'],
+            fg='white'
+        )
+        cultural_title.pack(fill=tk.X, pady=5)
+
+        self.cultural_gantt = tk.Canvas(
+            cultural_frame,
+            bg='white',
+            height=200,
+            relief='flat'
+        )
+        self.cultural_gantt.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # Add scrollwheel support to cultural canvas
+        self._setup_canvas_scrollwheel(self.cultural_gantt, cultural_frame)
+
+    def run_comparison(self):
+        """Run both algorithms in parallel."""
+        self.is_running = True
+        
+        # Create problem data dict for algorithms using the same format as results page
+        problem_data = self._prepare_problem_data()
+        
+        # Run backtracking in background thread
+        self.backtrack_thread = threading.Thread(
+            target=self._run_backtracking,
+            args=(problem_data,),
+            daemon=True
+        )
+        self.backtrack_thread.start()
+        
+        # Run cultural algorithm in background thread
+        self.cultural_thread = threading.Thread(
+            target=self._run_cultural,
+            args=(problem_data,),
+            daemon=True
+        )
+        self.cultural_thread.start()
+        
+        # Start checking for completion
+        self.check_completion()
+
+    def _prepare_problem_data(self):
+        """Convert GUI data format to algorithm format."""
+        problem_data = {
+            'machines_count': self.machine_count,
+            'total_jobs': self.job_count,
+            'total_tasks': sum(len(job['tasks']) for job in self.jobs_data),
+            'jobs': []
+        }
+        
+        for job in self.jobs_data:
+            job_data = {
+                'job_id': job['job_id'],
+                'tasks': []
+            }
+            for task_idx, exec_time in enumerate(job['tasks'], 1):
+                job_data['tasks'].append({
+                    'task_id': task_idx,
+                    'execution_time': exec_time
+                })
+            problem_data['jobs'].append(job_data)
+        
+        return problem_data
+
+    def _run_backtracking(self, problem_data):
+        """Run backtracking algorithm."""
+        try:
+            start_time = time.time()
+            timeline, makespan, _ = backtracking_algorithm(problem_data)
+            exec_time = time.time() - start_time
+            self.backtrack_timeline = timeline
+            self.backtrack_metrics = get_metrics(timeline, exec_time)
+            # Draw Gantt chart
+            self.after(0, self._draw_backtrack_gantt)
+        except Exception as e:
+            print(f"Backtracking error: {e}")
+            import traceback
+            traceback.print_exc()
+            self.backtrack_metrics = None
+
+    def _run_cultural(self, problem_data):
+        """Run cultural algorithm."""
+        try:
+            start_time = time.time()
+            timeline, _, _ = cultural_algorithm(problem_data)
+            exec_time = time.time() - start_time
+            self.cultural_timeline = timeline
+            self.cultural_metrics = get_metrics(timeline, exec_time)
+            # Draw Gantt chart
+            self.after(0, self._draw_cultural_gantt)
+        except Exception as e:
+            print(f"Cultural error: {e}")
+            import traceback
+            traceback.print_exc()
+            self.cultural_metrics = None
+
+    def check_completion(self):
+        """Check if both algorithms have completed and update display."""
+        # Update display if either algorithm has completed
+        if self.backtrack_metrics is not None:
+            self._update_backtrack_display()
+        
+        if self.cultural_metrics is not None:
+            self._update_cultural_display()
+        
+        # Both algorithms completed
+        if self.backtrack_metrics is not None and self.cultural_metrics is not None:
+            self._update_winners()
+            self.is_running = False
+        elif self.is_running:
+            # Still running, check again in 500ms
+            self.after(500, self.check_completion)
+
+    def _update_backtrack_display(self):
+        """Update backtracking metrics in the table."""
+        if not self.backtrack_metrics:
+            return
+        
+        metrics_map = {
+            "Makespan (ms)": self.backtrack_metrics['makespan'],
+            "Total Idle Time (ms)": self.backtrack_metrics['idle_time'],
+            "Resource Utilization (%)": f"{self.backtrack_metrics['utilization']:.2f}%",
+            "Execution Time (s)": self.backtrack_metrics['execTime'],
+        }
+        
+        for metric_name, metric_value in metrics_map.items():
+            if metric_name in self.metric_rows:
+                row_id = self.metric_rows[metric_name]
+                current_values = self.comparison_tree.item(row_id)['values']
+                # Update backtracking column (index 1), keep others as is
+                self.comparison_tree.item(
+                    row_id,
+                    values=(current_values[0], metric_value, current_values[2], current_values[3])
+                )
+
+    def _update_cultural_display(self):
+        """Update cultural metrics in the table."""
+        if not self.cultural_metrics:
+            return
+        
+        metrics_map = {
+            "Makespan (ms)": self.cultural_metrics['makespan'],
+            "Total Idle Time (ms)": self.cultural_metrics['idle_time'],
+            "Resource Utilization (%)": f"{self.cultural_metrics['utilization']:.2f}%",
+            "Execution Time (s)": self.cultural_metrics['execTime'],
+        }
+        
+        for metric_name, metric_value in metrics_map.items():
+            if metric_name in self.metric_rows:
+                row_id = self.metric_rows[metric_name]
+                current_values = self.comparison_tree.item(row_id)['values']
+                # Update cultural column (index 2), keep others as is
+                self.comparison_tree.item(
+                    row_id,
+                    values=(current_values[0], current_values[1], metric_value, current_values[3])
+                )
+
+    def _update_winners(self):
+        """Update winner column when both algorithms have completed."""
+        if not self.backtrack_metrics or not self.cultural_metrics:
+            return
+        
+        # Extract numeric values for comparison
+        backtrack_makespan = float(self.backtrack_metrics['makespan'].split()[0])
+        cultural_makespan = float(self.cultural_metrics['makespan'].split()[0])
+        
+        backtrack_idle = float(self.backtrack_metrics['idle_time'].split()[0])
+        cultural_idle = float(self.cultural_metrics['idle_time'].split()[0])
+        
+        backtrack_util = float(self.backtrack_metrics['utilization'])
+        cultural_util = float(self.cultural_metrics['utilization'])
+        
+        backtrack_time = float(self.backtrack_metrics['execTime'].split()[0])
+        cultural_time = float(self.cultural_metrics['execTime'].split()[0])
+        
+        # Determine winners (lower is better for makespan/idle, higher is better for utilization)
+        winners = {
+            "Makespan (ms)": "Backtracking" if backtrack_makespan < cultural_makespan else "Cultural",
+            "Total Idle Time (ms)": "Backtracking" if backtrack_idle < cultural_idle else "Cultural",
+            "Resource Utilization (%)": "Cultural" if cultural_util > backtrack_util else "Backtracking",
+            "Execution Time (s)": "Cultural" if cultural_time < backtrack_time else "Backtracking",
+        }
+        
+        # Update winner column for each metric
+        for metric_name, winner in winners.items():
+            if metric_name in self.metric_rows:
+                row_id = self.metric_rows[metric_name]
+                current_values = self.comparison_tree.item(row_id)['values']
+                # Update winner column (index 3), keep others as is
+                self.comparison_tree.item(
+                    row_id,
+                    values=(current_values[0], current_values[1], current_values[2], winner)
+                )
+
+    def _update_comparison_display(self):
+        """Update the comparison table with actual results."""
+        # Extract numeric values for comparison
+        backtrack_makespan = float(self.backtrack_metrics['makespan'].split()[0])
+        cultural_makespan = float(self.cultural_metrics['makespan'].split()[0])
+        
+        backtrack_idle = float(self.backtrack_metrics['idle_time'].split()[0])
+        cultural_idle = float(self.cultural_metrics['idle_time'].split()[0])
+        
+        backtrack_util = float(self.backtrack_metrics['utilization'])
+        cultural_util = float(self.cultural_metrics['utilization'])
+        
+        backtrack_time = float(self.backtrack_metrics['execTime'].split()[0])
+        cultural_time = float(self.cultural_metrics['execTime'].split()[0])
+        
+        # Determine winners (lower is better for makespan/idle, higher is better for utilization)
+        makespan_winner = "Backtracking" if backtrack_makespan < cultural_makespan else "Cultural"
+        idle_winner = "Backtracking" if backtrack_idle < cultural_idle else "Cultural"
+        util_winner = "Cultural" if cultural_util > backtrack_util else "Backtracking"
+        time_winner = "Cultural" if cultural_time < backtrack_time else "Backtracking"
+        
+        # Update table rows
+        metrics_data = [
+            ("Makespan (ms)", self.backtrack_metrics['makespan'], self.cultural_metrics['makespan'], makespan_winner),
+            ("Total Idle Time (ms)", self.backtrack_metrics['idle_time'], self.cultural_metrics['idle_time'], idle_winner),
+            ("Resource Utilization (%)", f"{self.backtrack_metrics['utilization']:.2f}%", f"{self.cultural_metrics['utilization']:.2f}%", util_winner),
+            ("Execution Time (s)", self.backtrack_metrics['execTime'], self.cultural_metrics['execTime'], time_winner),
+        ]
+        
+        for metric_name, backtrack_val, cultural_val, winner in metrics_data:
+            if metric_name in self.metric_rows:
+                self.comparison_tree.item(
+                    self.metric_rows[metric_name],
+                    values=(metric_name, backtrack_val, cultural_val, winner)
+                )
+
+    def _draw_backtrack_gantt(self):
+        """Draw Gantt chart for backtracking algorithm."""
+        if not self.backtrack_timeline:
+            return
+        
+        self.backtrack_gantt.delete("all")
+        self._draw_gantt_on_canvas(self.backtrack_gantt, self.backtrack_timeline, "Backtracking")
+
+    def _draw_cultural_gantt(self):
+        """Draw Gantt chart for cultural algorithm."""
+        if not self.cultural_timeline:
+            return
+        
+        self.cultural_gantt.delete("all")
+        self._draw_gantt_on_canvas(self.cultural_gantt, self.cultural_timeline, "Cultural")
+
+    def _draw_gantt_on_canvas(self, canvas, timeline, algorithm_name):
+        """Generic method to draw Gantt chart on a canvas."""
+        if not timeline:
+            return
+        
+        # Get canvas dimensions
+        canvas_width = canvas.winfo_width()
+        canvas_height = canvas.winfo_height()
+        
+        if canvas_width <= 1:
+            canvas_width = 400
+        if canvas_height <= 1:
+            canvas_height = 200
+        
+        # Get timeline dimensions
+        try:
+            max_time = max(
+                max(
+                    list(task_dict.values())[0][0] + list(task_dict.values())[0][1]
+                    for task_dict in tasks
+                )
+                for tasks in timeline.values() if tasks
+            )
+        except (ValueError, IndexError, KeyError):
+            max_time = 100
+        
+        # Layout parameters
+        margin_left = 40
+        margin_right = 20
+        margin_top = 20
+        margin_bottom = 20
+        
+        chart_width = canvas_width - margin_left - margin_right
+        chart_height = canvas_height - margin_top - margin_bottom
+        
+        # Time scale
+        time_scale = chart_width / max(max_time, 1)
+        
+        # Machine height
+        num_machines = len(timeline)
+        machine_height = chart_height / max(num_machines, 1)
+        
+        # Color palette for jobs
+        colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
+            '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B88B', '#ABEBC6'
+        ]
+        
+        # Draw machines and tasks
+        for machine_idx, (machine, tasks) in enumerate(sorted(timeline.items())):
+            y_pos = margin_top + machine_idx * machine_height
+            
+            # Draw machine label
+            canvas.create_text(
+                margin_left - 10, y_pos + machine_height / 2,
+                text=f"M{machine}", anchor="e", font=(FONTS['small'][0], 8),
+                fill=COLORS['text_dark']
+            )
+            
+            # Draw machine bar background
+            canvas.create_rectangle(
+                margin_left, y_pos,
+                canvas_width + margin_left, y_pos + machine_height - 2,
+                fill='#F0F0F0', outline='#CCCCCC'
+            )
+            
+            # Draw tasks
+            for task_dict in tasks:
+                for (job_id, task_id), (start_time, duration) in task_dict.items():
+                    x1 = margin_left + start_time * time_scale
+                    x2 = x1 + duration * time_scale
+                    y1 = y_pos + 2
+                    y2 = y_pos + machine_height - 2
+                    
+                    # Get color for job
+                    color = colors[(job_id - 1) % len(colors)]
+                    
+                    # Draw task rectangle
+                    canvas.create_rectangle(
+                        x1, y1, x2, y2,
+                        fill=color, outline='#333333', width=1
+                    )
+                    
+                    # Draw task label if there's enough space
+                    if x2 - x1 > 30:
+                        canvas.create_text(
+                            (x1 + x2) / 2, (y1 + y2) / 2,
+                            text=f"J{job_id}", anchor="center",
+                            font=(FONTS['small'][0], 7), fill='white'
+                        )
+        
+        # Draw time axis
+        axis_y = margin_top + chart_height
+        canvas.create_line(
+            margin_left, axis_y,
+            canvas_width + margin_left, axis_y,
+            fill='#333333', width=2
+        )
+        
+        # Draw time labels
+        num_ticks = 5
+        for i in range(num_ticks + 1):
+            x = margin_left + (i / num_ticks) * chart_width
+            time_val = (i / num_ticks) * max_time
+            canvas.create_line(x, axis_y, x, axis_y + 5, fill='#333333', width=1)
+            canvas.create_text(
+                x, axis_y + 15,
+                text=f"{int(time_val)}", anchor="n",
+                font=(FONTS['small'][0], 8), fill=COLORS['text_dark']
+            )
+
+    def _setup_canvas_scrollwheel(self, canvas, parent_frame):
+        """Setup scrollwheel support for a canvas with vertical scrolling."""
+        # Create a scrollbar for the canvas
+        scrollbar = ttk.Scrollbar(parent_frame, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Create scroll region based on canvas content
+        canvas.update_idletasks()
+        
+        # Bind mouse wheel events
+        def _on_mousewheel(event):
+            try:
+                # Scroll vertically on Windows/macOS
+                scroll_amount = int(-1 * (event.delta / 120) * 3)
+                canvas.yview_scroll(scroll_amount, "units")
+            except tk.TclError:
+                pass
+        
+        def _on_mousewheel_linux(event):
+            try:
+                # Scroll vertically on Linux
+                if event.num == 5:  # Scroll down
+                    canvas.yview_scroll(3, "units")
+                elif event.num == 4:  # Scroll up
+                    canvas.yview_scroll(-3, "units")
+            except tk.TclError:
+                pass
+        
+        # Bind events
+        canvas.bind("<MouseWheel>", _on_mousewheel)
+        canvas.bind("<Button-4>", _on_mousewheel_linux)
+        canvas.bind("<Button-5>", _on_mousewheel_linux)
 
     def on_back(self):
         """Handle back button."""
