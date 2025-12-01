@@ -36,7 +36,7 @@ class backTracking:
             'execution_time': task['execution_time'],
             'start_time': start_time,
             'end_time': start_time + task['execution_time'],
-            'machine': machine
+            'machine': machine + 1
         }
         
         self.timeline[machine].append(scheduled_task)
@@ -375,7 +375,7 @@ class backTracking:
         total_machine_time = 0
         
         for machine in sorted(self.timeline.keys()):
-            print(f"\nMachine {machine}:")
+            print(f"\nMachine {machine + 1}:")
             if not self.timeline[machine]:
                 print("  No tasks assigned")
                 continue
