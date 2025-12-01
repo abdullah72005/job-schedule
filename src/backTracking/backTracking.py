@@ -391,3 +391,67 @@ class backTracking:
                 machine_end_time = max(machine_end_time, task['end_time'])
             
             total_machine_time += machine_end_time
+            print(f"Machine utilization: {machine_end_time} time units")
+
+
+def backtracking_algorithm(problem_data, generation_callback=None):
+    """
+    Wrapper function for backtracking algorithm to integrate with GUI.
+    Converts problem data format to backtracking format and runs the algorithm.
+    
+    Args:
+        problem_data: Problem configuration dict with machines_count, total_jobs, total_tasks, jobs
+        generation_callback: Optional callback function(step, info) for progress updates
+        
+    Returns:
+        tuple: (timeline, makespan, step_history)
+    """
+    # Create backtracking instance with modified initialization
+    bt = backTracking()
+    bt.machines_count = problem_data['machines_count']
+    bt.total_jobs = problem_data['total_jobs']
+    bt.total_tasks = problem_data['total_tasks']
+    bt.jobs = problem_data['jobs']
+    
+    # Track search progress
+    step_count = [0]  # Using list to modify in nested function
+    
+    # Monkey-patch the _backtrack method to call the callback
+    original_backtrack = bt._backtrack
+    step_history = []
+    
+    def wrapped_backtrack(job_index, task_index):
+        step_count[0] += 1
+        
+        # Call callback every 1000 steps for performance
+        if generation_callback and step_count[0] % 1000 == 0:
+            current_best = bt.best_makespan if bt.best_makespan != float('inf') else 'N/A'
+            generation_callback(step_count[0], {
+                'nodes_visited': bt.nodes_visited,
+                'best_makespan': current_best
+            })
+            step_history.append((step_count[0], current_best))
+        
+        return original_backtrack(job_index, task_index)
+    
+    bt._backtrack = wrapped_backtrack
+    
+    # Run the algorithm
+    start_time = time.time()
+    bt.schedule_tasks(time_limit= 60 * 1)  # Optional time limit of 5 minutes
+    exec_time = time.time() - start_time
+    
+    # Convert timeline format to match cultural algorithm's format
+    converted_timeline = {}
+    for machine, tasks in bt.timeline.items():
+        converted_timeline[machine] = []
+        for task in tasks:
+            task_key = (task['job_id'], task['task_id'])
+            converted_timeline[machine].append({
+                task_key: (task['start_time'], task['execution_time'])
+            })
+    
+    # Get makespan from metrics
+    makespan = bt._calculate_makespan()
+    
+    return converted_timeline, makespan, step_history
