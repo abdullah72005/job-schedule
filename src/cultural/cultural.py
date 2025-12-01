@@ -210,6 +210,7 @@ def _cultural_algorithm(generation_callback=None):
             generation_callback(i + 1, belief.situational.fitness)
         else:
             print(f"Generation {i+1}: Best Fitness = {belief.situational.fitness}")
+    print("Best timeline:", belief.situational.timeline)
     
     return belief.situational.timeline, belief.situational.fitness, fitness_history
 
@@ -226,6 +227,7 @@ def get_metrics(timeline, exec_time):
     idle_time = 0
     total_execution_time = 0
 
+    # First pass: find makespan and total execution time
     for machine, tasks in timeline.items(): 
         if tasks:
             last_task = tasks[-1]
@@ -235,13 +237,25 @@ def get_metrics(timeline, exec_time):
                 if machine_completion_time > makespan:
                     makespan = machine_completion_time
             
+            for task_dict in tasks:
+                for task in task_dict.values():
+                    start , duration = task
+                    total_execution_time += duration  # Add all execution times
+
+    # Second pass: calculate idle time (between tasks and at the end of machines)
+    for machine, tasks in timeline.items(): 
+        if tasks:
             pastValue = 0
+            # Idle time between tasks
             for task_dict in tasks:
                 for task in task_dict.values():
                     start , duration = task
                     idle_time += start - pastValue
-                    total_execution_time += duration  # Add all execution times
                     pastValue = start + duration
+            
+            # Idle time at the end of machine execution
+            machine_end_time = pastValue
+            idle_time += makespan - machine_end_time
 
     # Calculate utilization
     total_available_time = makespan * len(timeline)
