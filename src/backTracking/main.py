@@ -8,11 +8,11 @@ def main():
     print("Starting backtracking job scheduling...")
     print(f"Dataset: {scheduler.total_jobs} jobs, {scheduler.total_tasks} tasks, {scheduler.machines_count} machines\n")
     
-    # Attempt to find a valid schedule
+    # Attempt to find a valid schedule with 60 second timeout
     if scheduler.schedule_tasks():
         scheduler.print_schedule()
     else:
-        print("something went wrong")
+        print("No solution found within time limit")
     
     print("\nAnalysis Metrics:")
     metrics = scheduler.get_metrics()
