@@ -47,7 +47,7 @@ class JobScheduleDatasetGenerator:
         self.max_execution_time = 60
         
         # Ensure output directory exists
-        self.output_dir = '/home/ali/code/projects/job-schedule/testingDataset/datasets'
+        self.output_dir = '/mnt/c/Users/abdul/OneDrive/Documents/VScode/job-schedule/testingDataset/datasets'
         os.makedirs(self.output_dir, exist_ok=True)
     
     def generate_task_execution_time(self) -> int:

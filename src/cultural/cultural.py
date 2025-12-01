@@ -2,10 +2,11 @@ import sys
 import os
 import random
 import copy
+import time
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 from src.helperFunctions.readFromCSV import read_dataset
 
-goal = read_dataset('small')
+goal = None
 pop_count = 1000
 generations = 100
 
@@ -95,14 +96,25 @@ class individual(object):
     def calc_fitness(self):
         timeline = self.timeline
         total_time = {k: 0 for k in timeline}  
+        idle_time = 0
+        makespan = 0
+        for machine, tasks in timeline.items(): 
+            pastValue = 0
+            machine_end_time = pastValue
+            idle_time += makespan - machine_end_time
+            last_task = tasks[-1]
+            # Idle time between tasks
+            for task_dict in tasks:
+                for task in task_dict.values():
+                    start , duration = task
+                    idle_time += start - pastValue
+                    pastValue = start + duration
+                    total_machine_time , total_execution_time_machine = task_dict
+                    machine_completion_time = total_machine_time + total_execution_time_machine
+                    if machine_completion_time > makespan:
+                        makespan = machine_completion_time
+            
 
-        for key in timeline:  
-            for task_dict in timeline[key]:
-                total_machine_time , total_execution_time = list(timeline[key][-1].values())[0]
-                total_time[key] = total_execution_time + total_machine_time
-        fitness = max(total_time.values())
-        for i in total_time:
-            fitness += max(total_time.values()) - total_time[i]
         return fitness
 
     def influence_from_belief_space(self, belief_space):
@@ -186,8 +198,72 @@ class individual(object):
             machine_end_times[new_machine] = end_time
         
         return influenced_timeline
+    
+    def _apply_influence(self, current_timeline, best_timeline, factor):
+        
+        # Extract all tasks from current timeline with their execution times
+        all_tasks = []
+        for machine in current_timeline:
+            for task_dict in current_timeline[machine]:
+                for (jobId, task_id), (start_time, exec_time) in task_dict.items():
+                    all_tasks.append({
+                        'jobId': jobId,
+                        'task_id': task_id,
+                        'exec_time': exec_time,
+                        'current_machine': machine
+                    })
+        
+        # Sort tasks by job and task_id to process in order
+        all_tasks.sort(key=lambda x: (x['jobId'], x['task_id']))
+        
+        # Build new timeline respecting all constraints
+        influenced_timeline = {}
+        job_task_completion_times = {}  # Track when each (jobId, task_id) finishes
+        machine_end_times = {}  # Track when each machine becomes free
+        
+        for task_info in all_tasks:
+            jobId = task_info['jobId']
+            task_id = task_info['task_id']
+            exec_time = task_info['exec_time']
+            task_key = (jobId, task_id)
+            
+            # Probabilistically adopt machine from best solution
+            new_machine = task_info['current_machine']
+            if random.random() < factor:
+                # Find this task in best solution and use its machine
+                for machine in best_timeline:
+                    for task_dict in best_timeline[machine]:
+                        if task_key in task_dict:
+                            new_machine = machine
+                            break
+            
+            # Calculate earliest start time respecting constraints
+            earliest_start = 0
+            
+            # Constraint 1: Task must start after its prerequisite (task_id - 1) completes
+            if task_id > 1:
+                prerequisite_key = (jobId, task_id - 1)
+                if prerequisite_key in job_task_completion_times:
+                    earliest_start = max(earliest_start, job_task_completion_times[prerequisite_key])
+            
+            # Constraint 2: Task must start after machine is free
+            if new_machine in machine_end_times:
+                earliest_start = max(earliest_start, machine_end_times[new_machine])
+            
+            # Schedule task on the chosen machine
+            if new_machine not in influenced_timeline:
+                influenced_timeline[new_machine] = []
+            
+            start_time = earliest_start
+            end_time = start_time + exec_time
+            
+            influenced_timeline[new_machine].append({task_key: (start_time, exec_time)})
+            job_task_completion_times[task_key] = end_time
+            machine_end_times[new_machine] = end_time
+        
+        return influenced_timeline
 
-def main():
+def _cultural_algorithm(generation_callback=None):
     population=[]
     for i in range(pop_count):
         population.append(individual.initialize_individual())
@@ -195,12 +271,96 @@ def main():
     belief = belief_space()
     belief.update_situational(min(population, key=lambda ind: ind.fitness))
     belief.update_normative(population)
+    fitness_history = []
     for i in range(generations):
         for ind in population:
             ind.influence_from_belief_space(belief)
         belief.update_situational(min(population, key=lambda ind: ind.fitness))
         belief.update_normative(population)
-        print("gen:", i, ":", belief.situational.fitness)
-    print("Best fitness after influence:", belief.situational.fitness)
-    print("Best timeline after influence:", belief.situational.timeline)
-main()
+        fitness_history.append(belief.situational.fitness)
+        
+        # Call the callback if provided (for GUI updates)
+        if generation_callback:
+            generation_callback(i + 1, belief.situational.fitness)
+        else:
+            print(f"Generation {i+1}: Best Fitness = {belief.situational.fitness}")
+    print("Best timeline:", belief.situational.timeline)
+    
+    return belief.situational.timeline, belief.situational.fitness, fitness_history
+
+
+def cultural_algorithm(res, generation_callback=None):
+    global goal
+    goal = res
+
+    return _cultural_algorithm(generation_callback=generation_callback)
+
+def get_metrics(timeline, exec_time):
+    metrics = {}
+    makespan = 0
+    idle_time = 0
+    total_execution_time = 0
+
+    # First pass: find makespan and total execution time
+    for machine, tasks in timeline.items(): 
+        if tasks:
+            last_task = tasks[-1]
+            for task_dict in last_task.values():
+                total_machine_time , total_execution_time_machine = task_dict
+                machine_completion_time = total_machine_time + total_execution_time_machine
+                if machine_completion_time > makespan:
+                    makespan = machine_completion_time
+            
+            for task_dict in tasks:
+                for task in task_dict.values():
+                    start , duration = task
+                    total_execution_time += duration  # Add all execution times
+
+    # Second pass: calculate idle time (between tasks and at the end of machines)
+    for machine, tasks in timeline.items(): 
+        if tasks:
+            pastValue = 0
+            # Idle time between tasks
+            for task_dict in tasks:
+                for task in task_dict.values():
+                    start , duration = task
+                    idle_time += start - pastValue
+                    pastValue = start + duration
+            
+            # Idle time at the end of machine execution
+            machine_end_time = pastValue
+            idle_time += makespan - machine_end_time
+
+    # Calculate utilization
+    total_available_time = makespan * len(timeline)
+    utilization = (total_execution_time / total_available_time * 100) if total_available_time > 0 else 0
+
+    metrics["makespan"] = str(makespan) + " ms"
+    metrics['idle_time'] = str(idle_time) + " ms"
+    metrics['utilization'] = round(utilization, 2)
+    metrics["execTime"] = str(round(exec_time, 2)) + ' s'
+
+
+    return metrics
+
+    
+
+
+# def main():
+#     res = read_dataset('large')
+
+#     start_time = time.time()
+#     bestTimeline, bestFitness, fitnessHistory = cultural_algorithm(res)
+#     end_time = time.time()
+
+#     exectime = end_time - start_time
+#     # print("Best Fitness:", bestFitness)
+#     # print("Best Timeline:", bestTimeline)
+#     # print("Fitness History:", fitnessHistory)
+#     metrics = get_metrics(bestTimeline, exectime)
+
+#     print("makespan:   " + str(metrics['makespan']))
+#     print("idle_time:   " + str(metrics['idle_time']))
+#     print("utilization:   " + str(metrics['utilization']) + "%")
+#     print("exectime:     " + str(metrics["execTime"]))
+# main()
