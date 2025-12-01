@@ -240,6 +240,22 @@ class TaskInputFrame(tk.Frame):
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=canvas.winfo_reqwidth())
         canvas.configure(yscrollcommand=scrollbar.set)
 
+        # Bind mouse wheel scroll to canvas
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        def _on_mousewheel_linux(event):
+            if event.num == 5:
+                canvas.yview_scroll(3, "units")
+            elif event.num == 4:
+                canvas.yview_scroll(-3, "units")
+        
+        # Windows and macOS
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        # Linux
+        canvas.bind_all("<Button-4>", _on_mousewheel_linux)
+        canvas.bind_all("<Button-5>", _on_mousewheel_linux)
+
         # Create task input rows
         for job_idx in range(self.job_count):
             self.create_job_section(scrollable_frame, job_idx)

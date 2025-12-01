@@ -4,7 +4,10 @@ Algorithm selection and execution pages for the Job Schedule GUI.
 
 import tkinter as tk
 from tkinter import ttk, messagebox
+import threading
+import time
 from .constants import COLORS, FONTS, PADDING
+from src.cultural.cultural import cultural_algorithm, get_metrics
 
 
 class AlgorithmSelectionPage(tk.Frame):
@@ -241,8 +244,13 @@ class AlgorithmResultsPage(tk.Frame):
         self.job_count = job_count
         self.jobs_data = jobs_data
         self.on_back_callback = on_back_callback
+        self.timeline = None
+        self.metrics = None
+        self.is_running = False
+        self.generation_data = []  # Store generation history for display
 
         self.create_widgets()
+        self.run_algorithm()
 
     def create_widgets(self):
         """Create the results display interface."""
@@ -276,7 +284,7 @@ class AlgorithmResultsPage(tk.Frame):
         content_frame = tk.Frame(self, bg=COLORS['light_bg'], padx=PADDING['large'], pady=PADDING['small'])
         content_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Gantt Chart Section (75% of width)
+        # Gantt Chart Section (65% of width)
         gantt_frame = tk.Frame(
             content_frame,
             bg='white',
@@ -304,24 +312,15 @@ class AlgorithmResultsPage(tk.Frame):
         )
         self.gantt_canvas.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Placeholder for Gantt chart
-        self.gantt_canvas.create_text(
-            300, 200,
-            text="Gantt Chart Visualization\n(Algorithm implementation required)",
-            font=FONTS['body'],
-            fill=COLORS['text_light'],
-            justify='center'
-        )
-
-        # Statistics Section (25% of width - smaller sidebar)
+        # Statistics Section (35% of width)
         stats_frame = tk.Frame(
             content_frame,
             bg='white',
             relief='solid',
             borderwidth=1
         )
-        stats_frame.pack(side=tk.RIGHT, fill=tk.BOTH, padx=(PADDING['small'], 0))
-        stats_frame.configure(width=300)  # Fixed width for sidebar
+        stats_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=False, padx=(PADDING['small'], 0))
+        stats_frame.configure(width=450)  # Wider sidebar for 35%
 
         stats_header = tk.Frame(stats_frame, bg=COLORS['secondary'], pady=8)
         stats_header.pack(fill=tk.X)
@@ -351,44 +350,258 @@ class AlgorithmResultsPage(tk.Frame):
             padx=8,
             pady=8,
             relief='flat',
-            width=30  # Limit width to prevent taking too much space
+            width=50  # Wider for 35% width section
         )
         self.stats_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.stats_text.yview)
 
-        # Populate with placeholder stats
-        self._display_placeholder_stats()
+        # Populate with loading stats
+        self._display_loading_stats()
 
-    def _display_placeholder_stats(self):
-        """Display placeholder statistics."""
+    def run_algorithm(self):
+        """Run the algorithm in a background thread."""
+        if self.is_running:
+            return
+        
+        self.is_running = True
+        thread = threading.Thread(target=self._run_algorithm_thread, daemon=True)
+        thread.start()
+
+    def _run_algorithm_thread(self):
+        """Execute algorithm in background thread."""
+        try:
+            # Prepare data for the algorithm
+            problem_data = self._prepare_problem_data()
+            
+            start_time = time.time()
+            if self.algorithm == "cultural":
+                timeline, fitness, fitness_history = cultural_algorithm(
+                    problem_data, 
+                    generation_callback=self._on_generation_update
+                )
+            else:
+                # Placeholder for backtracking
+                messagebox.showwarning("Not Implemented", "Backtracking algorithm not yet integrated")
+                return
+            
+            exec_time = time.time() - start_time
+            
+            # Get metrics
+            self.metrics = get_metrics(timeline, exec_time)
+            self.timeline = timeline
+            
+            # Update UI in main thread
+            self.after(0, self._display_results)
+            
+        except Exception as e:
+            self.after(0, lambda: messagebox.showerror("Algorithm Error", str(e)))
+            print(f"Algorithm error: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def _on_generation_update(self, generation, fitness):
+        """Callback for generation updates from the algorithm."""
+        self.generation_data.append((generation, fitness))
+        # Update UI in main thread
+        self.after(0, self._update_generation_display)
+
+    def _prepare_problem_data(self):
+        """Convert GUI data format to algorithm format."""
+        problem_data = {
+            'machines_count': self.machine_count,
+            'total_jobs': self.job_count,
+            'total_tasks': sum(len(job['tasks']) for job in self.jobs_data),
+            'jobs': []
+        }
+        
+        for job in self.jobs_data:
+            job_data = {
+                'job_id': job['job_id'],
+                'tasks': []
+            }
+            for task_idx, exec_time in enumerate(job['tasks'], 1):
+                job_data['tasks'].append({
+                    'task_id': task_idx,
+                    'execution_time': exec_time
+                })
+            problem_data['jobs'].append(job_data)
+        
+        return problem_data
+
+    def _display_loading_stats(self):
+        """Display loading message."""
         stats_content = f"""ALGORITHM: {self.algorithm.upper()}
-{'=' * 35}
+{'=' * 40}
 
-PROBLEM CONFIGURATION
-• Machines: {self.machine_count}
-• Jobs: {self.job_count}
-• Total Tasks: {sum(len(job['tasks']) for job in self.jobs_data)}
+Status: Running algorithm...
+Please wait...
 
-PERFORMANCE METRICS
-• Makespan: [To be calculated]
-• Total Idle Time: [To be calculated]
-• Resource Utilization: [To be calculated]%
-• Execution Time: [To be calculated] ms
-
-ALGORITHM STATISTICS
-• Generation: [To be calculated]
-• Convergence: [To be calculated]
-• Best Fitness: [To be calculated]
-• Average Fitness: [To be calculated]
-
-SCHEDULE DETAILS
-• Status: Ready for implementation
-• Optimization Level: [To be calculated]
+GENERATION EVOLUTION
+{'=' * 40}
 """
         self.stats_text.config(state=tk.NORMAL)
         self.stats_text.delete(1.0, tk.END)
         self.stats_text.insert(tk.END, stats_content)
         self.stats_text.config(state=tk.DISABLED)
+
+    def _update_generation_display(self):
+        """Update generation display in real-time."""
+        self.stats_text.config(state=tk.NORMAL)
+        
+        stats_content = f"""ALGORITHM: {self.algorithm.upper()}
+{'=' * 40}
+
+GENERATION EVOLUTION
+{'=' * 40}
+"""
+        # Add generation data
+        for gen, fitness in self.generation_data[-10:]:  # Show last 10 generations
+            stats_content += f"Gen {gen:3d}: Fitness = {fitness:.2f}\n"
+        
+        self.stats_text.delete(1.0, tk.END)
+        self.stats_text.insert(tk.END, stats_content)
+        self.stats_text.see(tk.END)  # Auto-scroll to bottom
+        self.stats_text.config(state=tk.DISABLED)
+
+    def _display_results(self):
+        """Display actual results after algorithm execution."""
+        if not self.metrics:
+            return
+        
+        stats_content = f"""ALGORITHM: {self.algorithm.upper()}
+{'=' * 40}
+
+GENERATION EVOLUTION
+{'=' * 40}
+"""
+        # Add all generations
+        for gen, fitness in self.generation_data:
+            stats_content += f"Gen {gen:3d}: Fitness = {fitness:.2f}\n"
+        
+        stats_content += f"""
+{'=' * 40}
+PROBLEM CONFIGURATION
+{'=' * 40}
+• Machines: {self.machine_count}
+• Jobs: {self.job_count}
+• Total Tasks: {sum(len(job['tasks']) for job in self.jobs_data)}
+
+PERFORMANCE METRICS
+{'=' * 40}
+• Makespan: {self.metrics['makespan']}
+• Total Idle Time: {self.metrics['idle_time']}
+• Resource Utilization: {self.metrics['utilization']}%
+• Execution Time: {self.metrics['execTime']}
+
+{'=' * 40}
+Status: Optimization Complete
+"""
+        
+        self.stats_text.config(state=tk.NORMAL)
+        self.stats_text.delete(1.0, tk.END)
+        self.stats_text.insert(tk.END, stats_content)
+        self.stats_text.see(tk.END)  # Scroll to end
+        self.stats_text.config(state=tk.DISABLED)
+        
+        # Draw Gantt chart
+        self._draw_gantt_chart()
+
+    def _draw_gantt_chart(self):
+        """Draw a simple Gantt chart representation."""
+        if not self.timeline:
+            return
+        
+        self.gantt_canvas.delete("all")
+        
+        # Get timeline dimensions
+        makespan = max(max(
+            list(task_dict.values())[0][0] + list(task_dict.values())[0][1]
+            for task_dict in tasks
+        ) for tasks in self.timeline.values() if tasks)
+        
+        # Canvas dimensions
+        canvas_width = self.gantt_canvas.winfo_width()
+        canvas_height = self.gantt_canvas.winfo_height()
+        
+        if canvas_width <= 1 or canvas_height <= 1:
+            canvas_width = 600
+            canvas_height = 300
+        
+        # Margins
+        left_margin = 80
+        top_margin = 40
+        right_margin = 20
+        bottom_margin = 40
+        
+        chart_width = canvas_width - left_margin - right_margin
+        chart_height = canvas_height - top_margin - bottom_margin
+        
+        # Draw title
+        self.gantt_canvas.create_text(
+            canvas_width // 2, 20,
+            text="Gantt Chart",
+            font=FONTS['subheader']
+        )
+        
+        # Colors for different machines
+        colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2']
+        
+        machines = sorted(self.timeline.keys())
+        machine_height = chart_height / len(machines) if machines else 0
+        
+        # Draw machines and tasks
+        for machine_idx, machine in enumerate(machines):
+            y_pos = top_margin + machine_idx * machine_height
+            
+            # Draw machine label
+            self.gantt_canvas.create_text(
+                left_margin - 10, y_pos + machine_height / 2,
+                text=f"M{machine}",
+                font=FONTS['body'],
+                anchor='e'
+            )
+            
+            # Draw tasks
+            for task_dict in self.timeline[machine]:
+                for (job_id, task_id), (start_time, duration) in task_dict.items():
+                    x_start = left_margin + (start_time / makespan) * chart_width
+                    x_width = (duration / makespan) * chart_width
+                    
+                    color = colors[(job_id - 1) % len(colors)]
+                    
+                    self.gantt_canvas.create_rectangle(
+                        x_start, y_pos,
+                        x_start + x_width, y_pos + machine_height - 2,
+                        fill=color, outline='black', width=1
+                    )
+                    
+                    # Add label if space permits
+                    if x_width > 30:
+                        self.gantt_canvas.create_text(
+                            x_start + x_width / 2, y_pos + machine_height / 2,
+                            text=f"J{job_id}T{task_id}",
+                            font=FONTS['small'],
+                            fill='white'
+                        )
+        
+        # Draw time axis
+        self.gantt_canvas.create_line(
+            left_margin, top_margin + chart_height,
+            left_margin + chart_width, top_margin + chart_height,
+            width=2
+        )
+        
+        # Draw time labels
+        time_intervals = 5
+        for i in range(time_intervals + 1):
+            time_val = (makespan / time_intervals) * i
+            x_pos = left_margin + (i / time_intervals) * chart_width
+            self.gantt_canvas.create_line(x_pos, top_margin + chart_height, x_pos, top_margin + chart_height + 5)
+            self.gantt_canvas.create_text(
+                x_pos, top_margin + chart_height + 15,
+                text=f"{int(time_val)}",
+                font=FONTS['small']
+            )
 
     def on_back(self):
         """Handle back button."""
@@ -521,11 +734,6 @@ class AlgorithmComparisonPage(tk.Frame):
             ("Total Idle Time (ms)", "Pending", "Pending", "TBD"),
             ("Resource Utilization (%)", "Pending", "Pending", "TBD"),
             ("Execution Time (s)", "Pending", "Pending", "TBD"),
-            ("Best Fitness Score", "Pending", "Pending", "TBD"),
-            ("Average Fitness", "Pending", "Pending", "TBD"),
-            ("Convergence Generation", "Pending", "Pending", "TBD"),
-            ("Solution Quality", "Pending", "Pending", "TBD"),
-            ("Memory Usage (MB)", "Pending", "Pending", "TBD"),
         ]
 
         for metric in metrics:

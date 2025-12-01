@@ -12,6 +12,8 @@ def main():
     print("A Tkinter GUI for the Job Scheduling Problem\n")
     run_app()
 
+    
+
 
 if __name__ == "__main__":
     main()
