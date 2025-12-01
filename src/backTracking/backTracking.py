@@ -5,7 +5,7 @@ import time
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 
 from src.helperFunctions.readFromCSV import read_dataset
-data = read_dataset('small')
+data = read_dataset('medium')
 class backTracking:
     def __init__(self):
         self.machines_count = data['machines_count']
@@ -210,13 +210,10 @@ class backTracking:
         self.time_expired = False
         
         print("Starting backtracking search...")
-        if time_limit:
-            print(f"Time limit: {time_limit} seconds")
         print(f"Problem size: {self.total_tasks} tasks, {self.total_jobs} jobs, {self.machines_count} machines")
         
         # Sort jobs intelligently
         self._sort_jobs()
-        print(f"Job ordering optimized: longest jobs first")
         
         # Find all possible schedules and keep the best one
         try:
@@ -229,12 +226,8 @@ class backTracking:
         if self.best_timeline is not None:
             self.timeline = self.best_timeline
             self.get_metrics()
-            if self.time_expired:
-                print(f"*** BEST SOLUTION FOUND BEFORE INTERRUPTION ***")
-            print(f"Search statistics: {self.nodes_visited} nodes visited, {self.nodes_pruned} nodes pruned")
             return True
         else:
-            print(f"Search statistics: {self.nodes_visited} nodes visited, {self.nodes_pruned} nodes pruned")
             return False
     
     def _backtrack(self, job_index, task_index):
@@ -252,7 +245,6 @@ class backTracking:
         
         # Check timeout
         if self.time_limit and (time.time() - self.start_time) > self.time_limit:
-            print(f"\n*** Time limit of {self.time_limit} seconds reached ***")
             self.time_expired = True
             return
         
@@ -327,58 +319,52 @@ class backTracking:
                 # Backtrack: remove the assignment
                 self._remove_task(current_task, machine)
     
-    
+        
     def get_metrics(self):
-        """Calculate the three analysis metrics from the current schedule."""
         if not self.timeline:
             return {}
-        
-        # Calculate actual makespan from current timeline (max of all end times)
+
         makespan = self._calculate_makespan()
-        
-        total_machine_utilization = 0
+
+        total_busy_time = 0
         total_idle_time = 0
-        
-        for machine_timeline in self.timeline.values():
-            if machine_timeline:
-                # Sort tasks by start time
-                sorted_tasks = sorted(machine_timeline, key=lambda t: t['start_time'])
-                
-                # Calculate machine utilization (how long this machine was working)
-                machine_end_time = max(task['end_time'] for task in machine_timeline)
-                machine_utilization = machine_end_time / makespan
-                total_machine_utilization += machine_utilization
-                
-                # Add gap before first task
-                first_start = sorted_tasks[0]['start_time']
-                total_idle_time += first_start
-                
-                # Add gaps between tasks
-                for i in range(1, len(sorted_tasks)):
-                    prev_end = sorted_tasks[i-1]['end_time']
-                    current_start = sorted_tasks[i]['start_time']
-                    if current_start > prev_end:
-                        total_idle_time += (current_start - prev_end)
-                
-                # Add waiting time after machine finishes until makespan
-                machine_end_time = max(task['end_time'] for task in machine_timeline)
-                if makespan > machine_end_time:
-                    total_idle_time += (makespan - machine_end_time)
-        
-        # Average machine utilization across all machines
-        self.machine_utilization = (total_machine_utilization / self.machines_count)
+
+        for machine in range(self.machines_count):
+            machine_timeline = self.timeline.get(machine, [])
+
+            # Sort tasks
+            sorted_tasks = sorted(machine_timeline, key=lambda t: t['start_time'])
+
+            # Busy time (correct utilization)
+            busy_time = sum(task['execution_time'] for task in machine_timeline)
+            total_busy_time += busy_time
+
+            # idle before first task
+            total_idle_time += sorted_tasks[0]['start_time']
+
+            # idle between tasks
+            for i in range(1, len(sorted_tasks)):
+                total_idle_time += sorted_tasks[i]['start_time'] - sorted_tasks[i-1]['end_time']
+
+            # idle after last task
+            last_end = sorted_tasks[-1]['end_time']
+            if last_end < makespan:
+                total_idle_time += (makespan - last_end)
+
+        # Utilization across all machines
+        machine_utilization = total_busy_time / (makespan * self.machines_count)
+
         self.total_idle_time = total_idle_time
-        
-        # Calculate execution time (actual algorithm runtime)
+        self.machine_utilization = machine_utilization
         self.execution_time = time.time() - self.start_time
-        
+
         return {
-            'makespan': makespan,
-            'total_idle_time': self.total_idle_time,
-            'machine_utilization': self.machine_utilization,
-            'execution_time': self.execution_time
+            "makespan": makespan,
+            "total_idle_time": total_idle_time,
+            "machine_utilization": machine_utilization,
+            "execution_time": self.execution_time
         }
-    
+ 
     def print_schedule(self):
         """Print the current schedule in a readable format."""
         if not self.timeline:
@@ -405,4 +391,3 @@ class backTracking:
                 machine_end_time = max(machine_end_time, task['end_time'])
             
             total_machine_time += machine_end_time
-            print(f"Machine utilization: {machine_end_time} time units")
