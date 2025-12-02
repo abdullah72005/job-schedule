@@ -489,6 +489,13 @@ GENERATION EVOLUTION
         if not self.metrics:
             return
         
+        # Check if widget still exists before trying to update it
+        try:
+            if not self.winfo_exists() or not self.stats_text.winfo_exists():
+                return
+        except tk.TclError:
+            return
+        
         algo_label = "GENERATIONS" if self.algorithm == "cultural" else "SEARCH PROGRESS"
         
         stats_content = f"""ALGORITHM: {self.algorithm.upper()}
@@ -523,11 +530,15 @@ PERFORMANCE METRICS
 Status: Optimization Complete
 """
         
-        self.stats_text.config(state=tk.NORMAL)
-        self.stats_text.delete(1.0, tk.END)
-        self.stats_text.insert(tk.END, stats_content)
-        self.stats_text.see(tk.END)  # Scroll to end
-        self.stats_text.config(state=tk.DISABLED)
+        try:
+            self.stats_text.config(state=tk.NORMAL)
+            self.stats_text.delete(1.0, tk.END)
+            self.stats_text.insert(tk.END, stats_content)
+            self.stats_text.see(tk.END)  # Scroll to end
+            self.stats_text.config(state=tk.DISABLED)
+        except tk.TclError:
+            # Widget has been destroyed
+            return
         
         # Draw Gantt chart
         self._draw_gantt_chart()
@@ -537,7 +548,17 @@ Status: Optimization Complete
         if not self.timeline:
             return
         
-        self.gantt_canvas.delete("all")
+        # Check if widget still exists
+        try:
+            if not self.gantt_canvas.winfo_exists():
+                return
+        except tk.TclError:
+            return
+        
+        try:
+            self.gantt_canvas.delete("all")
+        except tk.TclError:
+            return
         
         # Get timeline dimensions
         makespan = max(max(

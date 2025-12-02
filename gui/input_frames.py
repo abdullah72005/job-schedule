@@ -177,6 +177,10 @@ class BasicInputFrame(tk.Frame):
         if job_count > MAX_JOBS:
             messagebox.showerror("Invalid Input", f"Number of jobs cannot exceed {MAX_JOBS}")
             return
+        
+        if machine_count > job_count:
+            messagebox.showerror("Invalid Input", f"Number of machines ({machine_count}) cannot exceed number of jobs ({job_count})")
+            return
 
         if self.on_submit_callback:
             self.on_submit_callback(machine_count, job_count)

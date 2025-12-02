@@ -36,7 +36,7 @@ class backTracking:
             'execution_time': task['execution_time'],
             'start_time': start_time,
             'end_time': start_time + task['execution_time'],
-            'machine': machine + 1
+            'machine': machine 
         }
         
         self.timeline[machine].append(scheduled_task)
@@ -444,6 +444,7 @@ def backtracking_algorithm(problem_data, generation_callback=None):
     # Convert timeline format to match cultural algorithm's format
     converted_timeline = {}
     for machine, tasks in bt.timeline.items():
+        machine += 1  # Convert to 1-based index
         converted_timeline[machine] = []
         for task in tasks:
             task_key = (task['job_id'], task['task_id'])
@@ -453,5 +454,6 @@ def backtracking_algorithm(problem_data, generation_callback=None):
     
     # Get makespan from metrics
     makespan = bt._calculate_makespan()
+    print("timeline:", converted_timeline)
     
     return converted_timeline, makespan, step_history
