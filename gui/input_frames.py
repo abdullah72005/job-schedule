@@ -182,6 +182,14 @@ class BasicInputFrame(tk.Frame):
             messagebox.showerror("Invalid Input", f"Number of machines ({machine_count}) cannot exceed number of jobs ({job_count})")
             return
 
+        # Print to console
+        print("\n" + "="*50)
+        print("BASIC CONFIGURATION SUBMITTED")
+        print("="*50)
+        print(f"Number of Machines: {machine_count}")
+        print(f"Number of Jobs: {job_count}")
+        print("="*50 + "\n")
+
         if self.on_submit_callback:
             self.on_submit_callback(machine_count, job_count)
 
@@ -497,6 +505,20 @@ class TaskInputFrame(tk.Frame):
         """Handle submission of all tasks."""
         jobs_data = self.get_all_tasks()
         if jobs_data and self.on_submit_callback:
+            # Print to console
+            print("\n" + "="*50)
+            print("TASK CONFIGURATION SUBMITTED")
+            print("="*50)
+            print(f"Number of Machines: {self.machine_count}")
+            print(f"Number of Jobs: {self.job_count}")
+            print(f"Total Tasks: {sum(len(job['tasks']) for job in jobs_data)}")
+            print("\nJob Details:")
+            for job in jobs_data:
+                task_times = job['tasks']
+                total_time = sum(task_times)
+                print(f"  Job {job['job_id']}: {len(task_times)} tasks, execution times: {task_times} (total: {total_time}ms)")
+            print("="*50 + "\n")
+            
             self.on_submit_callback(self.machine_count, self.job_count, jobs_data)
 
     def reset_values(self):

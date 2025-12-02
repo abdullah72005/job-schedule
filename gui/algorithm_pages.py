@@ -7,7 +7,7 @@ from tkinter import ttk, messagebox
 import threading
 import time
 from .constants import COLORS, FONTS, PADDING
-from src.cultural.cultural import cultural_algorithm, get_metrics
+from src.cultural.cultural import cultural_algorithm, get_metrics as cultural_get_metrics
 from src.backTracking.backTracking import backtracking_algorithm
 
 
@@ -374,28 +374,26 @@ class AlgorithmResultsPage(tk.Frame):
             # Prepare data for the algorithm
             problem_data = self._prepare_problem_data()
             
-            start_time = time.time()
             if self.algorithm == "cultural":
+                start_time = time.time()
                 timeline, fitness, fitness_history = cultural_algorithm(
                     problem_data, 
                     generation_callback=self._on_generation_update
                 )
+                exec_time = time.time() - start_time
+                self.metrics = cultural_get_metrics(timeline, exec_time)
             elif self.algorithm == "backtracking":
-                timeline, makespan, step_history = backtracking_algorithm(
+                timeline, self.metrics, step_history = backtracking_algorithm(
                     problem_data,
                     generation_callback=self._on_generation_update
                 )
                 # Convert to fitness-like format for consistency
-                fitness = makespan
                 fitness_history = step_history
             else:
                 messagebox.showerror("Error", f"Unknown algorithm: {self.algorithm}")
                 return
             
-            exec_time = time.time() - start_time
-            
             # Get metrics
-            self.metrics = get_metrics(timeline, exec_time)
             self.timeline = timeline
             
             # Update UI in main thread
@@ -919,10 +917,10 @@ class AlgorithmComparisonPage(tk.Frame):
         """Run backtracking algorithm."""
         try:
             start_time = time.time()
-            timeline, makespan, _ = backtracking_algorithm(problem_data)
+            timeline, metrics, _ = backtracking_algorithm(problem_data)
             exec_time = time.time() - start_time
             self.backtrack_timeline = timeline
-            self.backtrack_metrics = get_metrics(timeline, exec_time)
+            self.backtrack_metrics = metrics
             # Draw Gantt chart
             self.after(0, self._draw_backtrack_gantt)
         except Exception as e:
@@ -938,7 +936,7 @@ class AlgorithmComparisonPage(tk.Frame):
             timeline, _, _ = cultural_algorithm(problem_data)
             exec_time = time.time() - start_time
             self.cultural_timeline = timeline
-            self.cultural_metrics = get_metrics(timeline, exec_time)
+            self.cultural_metrics = cultural_get_metrics(timeline, exec_time)
             # Draw Gantt chart
             self.after(0, self._draw_cultural_gantt)
         except Exception as e:

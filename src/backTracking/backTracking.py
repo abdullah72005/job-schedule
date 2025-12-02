@@ -359,10 +359,10 @@ class backTracking:
         self.execution_time = time.time() - self.start_time
 
         return {
-            "makespan": makespan,
-            "total_idle_time": total_idle_time,
-            "machine_utilization": machine_utilization,
-            "execution_time": self.execution_time
+            "makespan": str(makespan) + ' ms',
+            "idle_time": str(total_idle_time) + ' ms',
+            "utilization": round(machine_utilization * 100, 2),
+            "execTime": str(round(self.execution_time, 2)) + " s"
         }
  
     def print_schedule(self):
@@ -453,7 +453,7 @@ def backtracking_algorithm(problem_data, generation_callback=None):
             })
     
     # Get makespan from metrics
-    makespan = bt._calculate_makespan()
+    metrics = bt.get_metrics()
     print("timeline:", converted_timeline)
     
-    return converted_timeline, makespan, step_history
+    return converted_timeline, metrics, step_history
