@@ -98,7 +98,7 @@ class individual(object):
         idle_time = 0
         makespan = 0
         if len(timeline)  < goal['machines_count']:
-            return float('inf')
+            return 999 * (goal['machines_count'] - len(timeline))
         for machine, tasks in timeline.items(): 
             last_task = tasks[-1]
             for task_dict in last_task.values():
