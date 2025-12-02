@@ -5,7 +5,7 @@ import time
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 
 from src.helperFunctions.readFromCSV import read_dataset
-data = read_dataset('medium')
+data = read_dataset('small')
 class backTracking:
     def __init__(self):
         self.machines_count = data['machines_count']
