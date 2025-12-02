@@ -7,8 +7,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 from src.helperFunctions.readFromCSV import read_dataset
 
 goal = None
-pop_count = 1000
-generations = 100
+pop_count = 100
+generations = 50
 
 class belief_space(object):
     def __init__(self):
@@ -95,25 +95,31 @@ class individual(object):
     
     def calc_fitness(self):
         timeline = self.timeline
-        total_time = {k: 0 for k in timeline}  
         idle_time = 0
         makespan = 0
+        if len(timeline)  < goal['machines_count']:
+            return float('inf')
+        for machine, tasks in timeline.items(): 
+            last_task = tasks[-1]
+            for task_dict in last_task.values():
+                total_machine_time , total_execution_time_machine = task_dict
+                machine_completion_time = total_machine_time + total_execution_time_machine
+                if machine_completion_time > makespan:
+                    makespan = machine_completion_time
+
         for machine, tasks in timeline.items(): 
             pastValue = 0
-            machine_end_time = pastValue
-            idle_time += makespan - machine_end_time
-            last_task = tasks[-1]
-            # Idle time between tasks
             for task_dict in tasks:
                 for task in task_dict.values():
                     start , duration = task
                     idle_time += start - pastValue
                     pastValue = start + duration
-                    total_machine_time , total_execution_time_machine = task_dict
-                    machine_completion_time = total_machine_time + total_execution_time_machine
-                    if machine_completion_time > makespan:
-                        makespan = machine_completion_time
             
+            # Idle time at the end of machine execution
+            machine_end_time = pastValue
+            idle_time += makespan - machine_end_time
+
+        fitness = makespan + idle_time
 
         return fitness
 
@@ -283,9 +289,7 @@ def _cultural_algorithm(generation_callback=None):
         if generation_callback:
             generation_callback(i + 1, belief.situational.fitness)
         else:
-            print(f"Generation {i+1}: Best Fitness = {belief.situational.fitness}")
-    print("Best timeline:", belief.situational.timeline)
-    
+            print(f"Generation {i + 1}: Best Fitness = {belief.situational.fitness}")
     return belief.situational.timeline, belief.situational.fitness, fitness_history
 
 
