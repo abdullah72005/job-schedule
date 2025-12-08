@@ -6,6 +6,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
 import time
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
 from .constants import COLORS, FONTS, PADDING
 from src.cultural.cultural import cultural_algorithm, get_metrics as cultural_get_metrics
 from src.backTracking.backTracking import backtracking_algorithm
@@ -66,7 +68,7 @@ class AlgorithmSelectionPage(tk.Frame):
 
         summary_label = tk.Label(
             summary_card,
-            text=f"📊 Problem Summary: {self.machine_count} Machines • {self.job_count} Jobs • {sum(len(job['tasks']) for job in self.jobs_data)} Total Tasks",
+            text=f"Problem Summary: {self.machine_count} Machines • {self.job_count} Jobs • {sum(len(job['tasks']) for job in self.jobs_data)} Total Tasks",
             font=FONTS['subheader'],
             bg='white',
             fg=COLORS['text_dark']
@@ -118,7 +120,7 @@ class AlgorithmSelectionPage(tk.Frame):
 
         backtrack_desc = tk.Label(
             backtrack_card,
-            text="A systematic search algorithm that explores all possible solutions by building candidates incrementally and abandoning partial candidates when they cannot possibly lead to a valid solution.",
+            text="A systematic search algorithm that explores all possible solutions by searching the domain space and abandoning partial candidates when they cannot possibly lead to a valid solution.",
             font=FONTS['body'],
             bg='white',
             fg=COLORS['text_light'],
@@ -281,6 +283,15 @@ class AlgorithmResultsPage(tk.Frame):
         )
         back_button.pack(side=tk.RIGHT)
 
+        # For cultural algorithm: different layout with more space for plot
+        if self.algorithm == "cultural":
+            self._create_cultural_layout()
+        else:
+            # For backtracking: keep original layout
+            self._create_backtracking_layout()
+
+    def _create_backtracking_layout(self):
+        """Layout for backtracking algorithm (Gantt + stats side by side, no plot)."""
         # Main content - Gantt chart takes most space, stats on right as sidebar
         content_frame = tk.Frame(self, bg=COLORS['light_bg'], padx=PADDING['large'], pady=PADDING['small'])
         content_frame.pack(fill=tk.BOTH, expand=True)
@@ -309,7 +320,7 @@ class AlgorithmResultsPage(tk.Frame):
         self.gantt_canvas = tk.Canvas(
             gantt_frame,
             bg="#f8f9fa",
-            height=400
+            height=500
         )
         self.gantt_canvas.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
@@ -358,6 +369,147 @@ class AlgorithmResultsPage(tk.Frame):
 
         # Populate with loading stats
         self._display_loading_stats()
+        
+        # No plot for backtracking
+        self.plot_canvas_frame = None
+        self.fig = None
+        self.canvas = None
+
+    def _create_cultural_layout(self):
+        """Layout for cultural algorithm (same as backtracking but with toggleable chart/plot)."""
+        # Main content - Visualization takes most space, stats on right as sidebar
+        content_frame = tk.Frame(self, bg=COLORS['light_bg'], padx=PADDING['large'], pady=PADDING['small'])
+        content_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Statistics Section (35% of width) - Pack first so it takes its space
+        stats_frame = tk.Frame(
+            content_frame,
+            bg='white',
+            relief='solid',
+            borderwidth=1
+        )
+        stats_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=False, padx=(PADDING['small'], 0))
+        stats_frame.configure(width=450)
+
+        stats_header = tk.Frame(stats_frame, bg=COLORS['secondary'], pady=8)
+        stats_header.pack(fill=tk.X)
+
+        stats_title = tk.Label(
+            stats_header,
+            text="Performance Statistics",
+            font=FONTS['subheader'],
+            bg=COLORS['secondary'],
+            fg='white'
+        )
+        stats_title.pack()
+
+        # Create scrollable text widget for stats
+        stats_content_frame = tk.Frame(stats_frame)
+        stats_content_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
+
+        scrollbar = tk.Scrollbar(stats_content_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.stats_text = tk.Text(
+            stats_content_frame,
+            wrap=tk.WORD,
+            yscrollcommand=scrollbar.set,
+            font=('Consolas', 9),
+            bg="#f8f9fa",
+            padx=8,
+            pady=8,
+            relief='flat',
+            width=50
+        )
+        self.stats_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.stats_text.yview)
+
+        # Left side: Toggleable Visualization (65% of width)
+        vis_frame = tk.Frame(
+            content_frame,
+            bg='white',
+            relief='solid',
+            borderwidth=1
+        )
+        vis_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, PADDING['small']))
+
+        # Header with title and toggle buttons
+        vis_header = tk.Frame(vis_frame, bg=COLORS['primary'], pady=8)
+        vis_header.pack(fill=tk.X)
+
+        vis_title = tk.Label(
+            vis_header,
+            text="Schedule Visualization",
+            font=FONTS['subheader'],
+            bg=COLORS['primary'],
+            fg='white'
+        )
+        vis_title.pack(side=tk.LEFT, padx=10)
+
+        # Toggle buttons
+        toggle_frame = tk.Frame(vis_header, bg=COLORS['primary'])
+        toggle_frame.pack(side=tk.RIGHT, padx=10)
+
+        self.chart_button = tk.Button(
+            toggle_frame,
+            text="Gantt Chart",
+            command=lambda: self._toggle_view("chart"),
+            bg=COLORS['primary_dark'],
+            fg="white",
+            font=('Arial', 9),
+            padx=10,
+            pady=3,
+            cursor="hand2",
+            relief="flat",
+            bd=0
+        )
+        self.chart_button.pack(side=tk.LEFT, padx=3)
+
+        self.plot_button = tk.Button(
+            toggle_frame,
+            text="Evolution Plot",
+            command=lambda: self._toggle_view("plot"),
+            bg=COLORS['text_light'],
+            fg="white",
+            font=('Arial', 9),
+            padx=10,
+            pady=3,
+            cursor="hand2",
+            relief="flat",
+            bd=0
+        )
+        self.plot_button.pack(side=tk.LEFT, padx=3)
+
+        # Container that will hold either chart or plot
+        self.view_container = tk.Frame(vis_frame, bg='white')
+        self.view_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Gantt chart view
+        self.gantt_frame_alt = tk.Frame(self.view_container, bg='white')
+
+        self.gantt_canvas_alt = tk.Canvas(
+            self.gantt_frame_alt,
+            bg="#f8f9fa",
+            height=350
+        )
+        self.gantt_canvas_alt.pack(fill=tk.BOTH, expand=True)
+
+        # Plot view
+        self.plot_frame_alt = tk.Frame(self.view_container, bg='white')
+
+        # Create canvas for matplotlib figure
+        self.plot_canvas_frame = tk.Frame(self.plot_frame_alt)
+        self.plot_canvas_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Placeholder figure (will be replaced when algorithm finishes)
+        self.fig = None
+        self.canvas = None
+
+        # Populate with loading stats
+        self._display_loading_stats()
+        
+        # Show chart by default
+        self._toggle_view("chart")
 
     def run_algorithm(self):
         """Run the algorithm in a background thread."""
@@ -463,6 +615,9 @@ GENERATION EVOLUTION
         self.stats_text.config(state=tk.NORMAL)
         
         algo_label = "GENERATIONS" if self.algorithm == "cultural" else "SEARCH PROGRESS"
+        step_name = "Node" if self.algorithm == "backtracking" else "Generation"
+        best_name = "Best Makespan" if self.algorithm == "backtracking" else "Best Fitness"
+
         
         stats_content = f"""ALGORITHM: {self.algorithm.upper()}
 {'=' * 40}
@@ -473,9 +628,9 @@ GENERATION EVOLUTION
         # Add generation data
         for step, fitness in self.generation_data[-10:]:  # Show last 10 entries
             if isinstance(fitness, float):
-                stats_content += f"Step {step:5d}: Best = {fitness:.2f}\n"
+                stats_content += f"{step_name} {step:5d}: {best_name} = {fitness:.2f}\n"
             else:
-                stats_content += f"Step {step:5d}: Best = {fitness}\n"
+                stats_content += f"{step_name} {step:5d}: {best_name} = {fitness}\n"
         
         self.stats_text.delete(1.0, tk.END)
         self.stats_text.insert(tk.END, stats_content)
@@ -495,6 +650,9 @@ GENERATION EVOLUTION
             return
         
         algo_label = "GENERATIONS" if self.algorithm == "cultural" else "SEARCH PROGRESS"
+        step_name = "Node" if self.algorithm == "backtracking" else "Generation"
+        best_name = "Best Makespan" if self.algorithm == "backtracking" else "Best Fitness"
+
         
         stats_content = f"""ALGORITHM: {self.algorithm.upper()}
 {'=' * 40}
@@ -505,9 +663,9 @@ GENERATION EVOLUTION
         # Add all generations/steps
         for step, fitness in self.generation_data:
             if isinstance(fitness, float):
-                stats_content += f"Step {step:5d}: Best = {fitness:.2f}\n"
+                stats_content += f"{step_name} {step:5d}: {best_name} = {fitness:.2f}\n"
             else:
-                stats_content += f"Step {step:5d}: Best = {fitness}\n"
+                stats_content += f"{step_name} {step:5d}: {best_name} = {fitness}\n"
         
         stats_content += f"""
 {'=' * 40}
@@ -540,21 +698,44 @@ Status: Optimization Complete
         
         # Draw Gantt chart
         self._draw_gantt_chart()
+        
+        # Draw fitness evolution plot
+        self._draw_fitness_evolution_plot()
+
+    def _toggle_view(self, view_type):
+        """Toggle between chart and plot view."""
+        if view_type == "chart":
+            # Show chart, hide plot
+            self.gantt_frame_alt.pack(fill=tk.BOTH, expand=True)
+            self.plot_frame_alt.pack_forget()
+            # Update button styles
+            self.chart_button.config(bg=COLORS['primary_dark'])
+            self.plot_button.config(bg=COLORS['text_light'])
+        else:
+            # Show plot, hide chart
+            self.gantt_frame_alt.pack_forget()
+            self.plot_frame_alt.pack(fill=tk.BOTH, expand=True)
+            # Update button styles
+            self.chart_button.config(bg=COLORS['text_light'])
+            self.plot_button.config(bg=COLORS['primary_dark'])
 
     def _draw_gantt_chart(self):
         """Draw a simple Gantt chart representation."""
         if not self.timeline:
             return
         
+        # Use alternate canvas for cultural algorithm, regular for backtracking
+        canvas = self.gantt_canvas_alt if self.algorithm == "cultural" else self.gantt_canvas
+        
         # Check if widget still exists
         try:
-            if not self.gantt_canvas.winfo_exists():
+            if not canvas.winfo_exists():
                 return
         except tk.TclError:
             return
         
         try:
-            self.gantt_canvas.delete("all")
+            canvas.delete("all")
         except tk.TclError:
             return
         
@@ -565,8 +746,8 @@ Status: Optimization Complete
         ) for tasks in self.timeline.values() if tasks)
         
         # Canvas dimensions
-        canvas_width = self.gantt_canvas.winfo_width()
-        canvas_height = self.gantt_canvas.winfo_height()
+        canvas_width = canvas.winfo_width()
+        canvas_height = canvas.winfo_height()
         
         if canvas_width <= 1 or canvas_height <= 1:
             canvas_width = 600
@@ -582,7 +763,7 @@ Status: Optimization Complete
         chart_height = canvas_height - top_margin - bottom_margin
         
         # Draw title
-        self.gantt_canvas.create_text(
+        canvas.create_text(
             canvas_width // 2, 20,
             text="Gantt Chart",
             font=FONTS['subheader']
@@ -599,7 +780,7 @@ Status: Optimization Complete
             y_pos = top_margin + machine_idx * machine_height
             
             # Draw machine label
-            self.gantt_canvas.create_text(
+            canvas.create_text(
                 left_margin - 10, y_pos + machine_height / 2,
                 text=f"M{machine}",
                 font=FONTS['body'],
@@ -614,7 +795,7 @@ Status: Optimization Complete
                     
                     color = colors[(job_id - 1) % len(colors)]
                     
-                    self.gantt_canvas.create_rectangle(
+                    canvas.create_rectangle(
                         x_start, y_pos,
                         x_start + x_width, y_pos + machine_height - 2,
                         fill=color, outline='black', width=1
@@ -622,7 +803,7 @@ Status: Optimization Complete
                     
                     # Add label if space permits
                     if x_width > 30:
-                        self.gantt_canvas.create_text(
+                        canvas.create_text(
                             x_start + x_width / 2, y_pos + machine_height / 2,
                             text=f"J{job_id}T{task_id}",
                             font=FONTS['small'],
@@ -630,7 +811,7 @@ Status: Optimization Complete
                         )
         
         # Draw time axis
-        self.gantt_canvas.create_line(
+        canvas.create_line(
             left_margin, top_margin + chart_height,
             left_margin + chart_width, top_margin + chart_height,
             width=2
@@ -641,12 +822,60 @@ Status: Optimization Complete
         for i in range(time_intervals + 1):
             time_val = (makespan / time_intervals) * i
             x_pos = left_margin + (i / time_intervals) * chart_width
-            self.gantt_canvas.create_line(x_pos, top_margin + chart_height, x_pos, top_margin + chart_height + 5)
-            self.gantt_canvas.create_text(
+            canvas.create_line(x_pos, top_margin + chart_height, x_pos, top_margin + chart_height + 5)
+            canvas.create_text(
                 x_pos, top_margin + chart_height + 15,
                 text=f"{int(time_val)}",
                 font=FONTS['small']
             )
+
+    def _draw_fitness_evolution_plot(self):
+        """Draw fitness evolution plot using matplotlib (only for cultural algorithm)."""
+        # Only draw for cultural algorithm
+        if self.algorithm != "cultural" or not self.generation_data:
+            return
+        
+        # Check if widget still exists
+        try:
+            if not self.plot_canvas_frame or not self.plot_canvas_frame.winfo_exists():
+                return
+        except tk.TclError:
+            return
+        
+        try:
+            # Extract data
+            generations = [step for step, _ in self.generation_data]
+            fitness_values = [fit if isinstance(fit, (int, float)) else float(str(fit).split('=')[-1].strip()) 
+                            for _, fit in self.generation_data]
+            
+            # Create figure with matplotlib
+            self.fig = Figure(figsize=(12, 5), dpi=100)
+            ax = self.fig.add_subplot(111)
+            
+            # Plot
+            ax.plot(generations, fitness_values, 'b-o', linewidth=2, markersize=5)
+            ax.set_xlabel('Generation', fontsize=12, fontweight='bold')
+            ax.set_ylabel('Best Fitness (ms)', fontsize=12, fontweight='bold')
+            ax.set_title('Cultural Algorithm Evolution Over Generations', fontsize=13, fontweight='bold')
+            ax.grid(True, alpha=0.3, linestyle='--')
+            ax.set_facecolor('#f8f9fa')
+            
+            # Add some styling
+            self.fig.patch.set_facecolor('white')
+            
+            # Clear previous canvas if exists
+            if self.canvas:
+                self.canvas.get_tk_widget().destroy()
+            
+            # Create canvas
+            self.canvas = FigureCanvasTkAgg(self.fig, master=self.plot_canvas_frame)
+            self.canvas.draw()
+            self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            
+        except Exception as e:
+            print(f"Error drawing fitness evolution plot: {e}")
+            import traceback
+            traceback.print_exc()
 
     def on_back(self):
         """Handle back button."""

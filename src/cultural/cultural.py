@@ -7,8 +7,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 from src.helperFunctions.readFromCSV import read_dataset
 
 goal = None
-pop_count = 1000
-generations = 100
+pop_count = 100
+generations = 50
 
 class belief_space(object):
     def __init__(self):
