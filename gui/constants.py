@@ -4,7 +4,7 @@ These values can be easily modified as requirements change.
 """
 
 # Input limits
-MAX_MACHINES = 7
+MAX_MACHINES = 10
 MAX_JOBS = 30
 MAX_TOTAL_TASKS = 200
 MAX_TASKS_PER_JOB = 20
