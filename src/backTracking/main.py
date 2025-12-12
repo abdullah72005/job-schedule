@@ -9,7 +9,7 @@ def main():
     print(f"Dataset: {scheduler.total_jobs} jobs, {scheduler.total_tasks} tasks, {scheduler.machines_count} machines\n")
     
     # Attempt to find a valid schedule with 60 second timeout
-    if scheduler.schedule_tasks():
+    if scheduler.schedule_tasks(time_limit=60):
         scheduler.print_schedule()
     else:
         print("No solution found within time limit")

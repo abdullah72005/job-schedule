@@ -207,12 +207,12 @@ class backTracking:
         # Reset analysis counters
         self.start_time = time.time()
         self.time_limit = time_limit
-        self.time_expired = False
+        self.interupted = False
         
         print("Starting backtracking search...")
         print(f"Problem size: {self.total_tasks} tasks, {self.total_jobs} jobs, {self.machines_count} machines")
         
-        # Sort jobs intelligently
+        # Sort jobs
         self._sort_jobs()
         
         # Find all possible schedules and keep the best one
@@ -220,7 +220,7 @@ class backTracking:
             self._backtrack(0, 0)
         except KeyboardInterrupt:
             print("\n*** Search interrupted by user ***")
-            self.time_expired = True
+            self.interupted = True
         
         # Set the best solution as current timeline and calculate analysis metrics
         if self.best_timeline is not None:
@@ -245,7 +245,7 @@ class backTracking:
         
         # Check timeout
         if self.time_limit and (time.time() - self.start_time) > self.time_limit:
-            self.time_expired = True
+            self.interupted = True
             return
         
         # Base case: all jobs and tasks scheduled successfully
@@ -313,7 +313,7 @@ class backTracking:
                 self._backtrack(job_index, task_index + 1)
                 
                 # Check if time expired during recursion
-                if hasattr(self, 'time_expired') and self.time_expired:
+                if hasattr(self, 'interupted') and self.interupted:
                     return
                 
                 # Backtrack: remove the assignment
