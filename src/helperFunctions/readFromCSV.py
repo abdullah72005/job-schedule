@@ -36,21 +36,17 @@ def read_dataset(size: str) -> Dict[str, Any]:
     if size not in valid_sizes:
         raise ValueError(f"Size must be one of {valid_sizes}, got '{size}'")
     
-    # Map size to filename
     filename_map = {
         'small': 'small_dataset.csv',
         'medium': 'medium_dataset.csv',
         'large': 'large_dataset.csv'
     }
     
-    # Construct file path relative to project root
     csv_file_path = os.path.join(r'testingDataset/datasets', filename_map[size])
     
-    # Check if file exists
     if not os.path.exists(csv_file_path):
         raise FileNotFoundError(f"Dataset file not found: {csv_file_path}")
     
-    # Read CSV data
     tasks_list = []
     machines_count = 0
     
@@ -59,7 +55,6 @@ def read_dataset(size: str) -> Dict[str, Any]:
             reader = csv.DictReader(csvfile)
             
             for row in reader:
-                # Convert data types and clean up
                 task = {
                     'job_id': int(row['job_id']),
                     'task_id': int(row['task_id']),
@@ -67,28 +62,23 @@ def read_dataset(size: str) -> Dict[str, Any]:
                 }
                 tasks_list.append(task)
                 
-                # Get machines count
                 if machines_count == 0:
                     machines_count = int(row['machines_count'])
     
     except Exception as e:
         raise RuntimeError(f"Error reading CSV file {csv_file_path}: {str(e)}")
     
-    # Organize tasks by job into an array (list of job objects)
-    # First build a temporary map of job_id -> tasks, then convert to a list
     jobs_map = {}
     for task in tasks_list:
         job_id = task['job_id']
         if job_id not in jobs_map:
             jobs_map[job_id] = []
-        # Keep minimal task info inside each job
         clean_task = {
             'task_id': task['task_id'],
             'execution_time': task['execution_time']
         }
         jobs_map[job_id].append(clean_task)
 
-    # Convert the map to a sorted list of jobs (array). Each job is a dict with 'job_id' and 'tasks'.
     jobs_array = []
     for job_id in sorted(jobs_map.keys()):
         jobs_array.append({
@@ -96,7 +86,6 @@ def read_dataset(size: str) -> Dict[str, Any]:
             'tasks': jobs_map[job_id]
         })
 
-    # Create result dictionary (return jobs as an array)
     result = {
         'machines_count': machines_count,
         'tasks': tasks_list,

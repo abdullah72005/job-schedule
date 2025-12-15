@@ -1,16 +1,4 @@
 #!/usr/bin/env python3
-"""
-Job Schedule Dataset Generator
-
-Generates 3 CSV files with different sizes:
-- small_dataset.csv: Small dataset for quick testing
-- medium_dataset.csv: Medium dataset for moderate testing
-- large_dataset.csv: Large dataset for performance testing
-
-Each dataset contains:
-- Number of machines
-- Jobs with execution times and optional dependencies (uncommon)
-"""
 
 import csv
 import random
@@ -20,56 +8,48 @@ from typing import List, Dict, Tuple
 
 class JobScheduleDatasetGenerator:
     def __init__(self):
-        # Dataset configurations with ranges
         self.datasets = {
             'small': {
-                'machines_range': (2, 5),   # 2-5 machines
-                'jobs_range': (3, 5),       # 3-8 jobs
-                'tasks_per_job_range': (2, 5),  # 2-5 tasks per job
+                'machines_range': (2, 5),   
+                'jobs_range': (3, 5),      
+                'tasks_per_job_range': (2, 5),  
                 'filename': 'small_dataset.csv'
             },
             'medium': {
-                'machines_range': (5, 12),  # 5-12 machines
-                'jobs_range': (8, 20),      # 8-20 jobs  
-                'tasks_per_job_range': (2, 8),  # 3-8 tasks per job
+                'machines_range': (5, 12),  
+                'jobs_range': (8, 20),       
+                'tasks_per_job_range': (2, 8),  
                 'filename': 'medium_dataset.csv'
             },
             'large': {
-                'machines_range': (10, 20), # 10-20 machines
-                'jobs_range': (20, 50),     # 20-50 jobs
-                'tasks_per_job_range': (2, 10), # 4-10 tasks per job
+                'machines_range': (10, 20), 
+                'jobs_range': (20, 50),    
+                'tasks_per_job_range': (2, 10), 
                 'filename': 'large_dataset.csv'
             }
         }
         
-        # Time range for task execution (in minutes)
         self.min_execution_time = 5
         self.max_execution_time = 60
         
-        # Ensure output directory exists
         self.output_dir = r'D:\code\python\mlAiDs\Aiproject\testingDataset\datasets'
         os.makedirs(self.output_dir, exist_ok=True)
     
     def generate_task_execution_time(self) -> int:
-        """Generate a random execution time for a task."""
         return random.randint(self.min_execution_time, self.max_execution_time)
     
 
     
     def generate_dataset(self, size: str) -> List[Dict]:
-        """Generate a dataset with jobs containing sequential tasks."""
         config = self.datasets[size]
-        tasks = []  # All tasks (flattened from all jobs)
+        tasks = [] 
         
-        # Generate random counts within specified ranges
         machines_count = random.randint(*config['machines_range'])
         jobs_count = random.randint(*config['jobs_range'])
         
         for job_id in range(1, jobs_count + 1):
-            # Generate number of tasks for this job
             tasks_in_job = random.randint(*config['tasks_per_job_range'])
             
-            # Generate tasks for this job (task_id starts from 1 for each job)
             for task_id in range(1, tasks_in_job + 1):
                 task_execution_time = self.generate_task_execution_time()
                 
@@ -85,19 +65,15 @@ class JobScheduleDatasetGenerator:
         return tasks
     
     def write_csv(self, tasks: List[Dict], filename: str):
-        """Write tasks data to CSV file."""
         filepath = os.path.join(self.output_dir, filename)
         
         with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
             fieldnames = ['job_id', 'task_id', 'execution_time', 'machines_count']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             
-            # Write header
             writer.writeheader()
             
-            # Write task data
             for task in tasks:
-                # Create simplified task row
                 task_row = {
                     'job_id': task['job_id'],
                     'task_id': task['task_id'],
@@ -112,13 +88,11 @@ class JobScheduleDatasetGenerator:
             tasks = self.generate_dataset(size)
             self.write_csv(tasks, self.datasets[size]['filename'])
         
-        # Generate a summary file
         self.generate_summary()
         
         print("Dataset generation completed successfully!")
     
     def generate_summary(self):
-        """Generate a summary of all datasets."""
         summary_path = os.path.join(self.output_dir, 'dataset_summary.txt')
         
         with open(summary_path, 'w') as f:

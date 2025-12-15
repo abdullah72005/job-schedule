@@ -115,7 +115,6 @@ class individual(object):
                     idle_time += start - pastValue
                     pastValue = start + duration
             
-            # Idle time at the end of machine execution
             machine_end_time = pastValue
             idle_time += makespan - machine_end_time
 
@@ -125,17 +124,14 @@ class individual(object):
 
     def influence_from_belief_space(self, belief_space):
         """Apply influence from belief space to modify individual's solution"""
-        # Get belief influences
         beliefs = belief_space.get_belief_influence()
         best_solution = beliefs['best_solution']
         normative_info = beliefs['normative_info']
 
 
         if self.fitness > normative_info['avg_fitness']:
-            # If individual is worse than average, move toward best solution
             influence_factor = random.uniform(0.1, 0.5)
             
-            # Apply influence by mixing current solution with best solution
             self.timeline = self._apply_influence(self.timeline, best_solution.timeline, influence_factor)
             self.fitness = self.calc_fitness()
         
@@ -143,7 +139,6 @@ class individual(object):
     
     def _apply_influence(self, current_timeline, best_timeline, factor):
         
-        # Extract all tasks from current timeline with their execution times
         all_tasks = []
         for machine in current_timeline:
             for task_dict in current_timeline[machine]:
@@ -155,13 +150,11 @@ class individual(object):
                         'current_machine': machine
                     })
         
-        # Sort tasks by job and task_id to process in order
         all_tasks.sort(key=lambda x: (x['jobId'], x['task_id']))
         
-        # Build new timeline respecting all constraints
         influenced_timeline = {}
-        job_task_completion_times = {}  # Track when each (jobId, task_id) finishes
-        machine_end_times = {}  # Track when each machine becomes free
+        job_task_completion_times = {}  
+        machine_end_times = {}  
         
         for task_info in all_tasks:
             jobId = task_info['jobId']
@@ -169,30 +162,24 @@ class individual(object):
             exec_time = task_info['exec_time']
             task_key = (jobId, task_id)
             
-            # Probabilistically adopt machine from best solution
             new_machine = task_info['current_machine']
             if random.random() < factor:
-                # Find this task in best solution and use its machine
                 for machine in best_timeline:
                     for task_dict in best_timeline[machine]:
                         if task_key in task_dict:
                             new_machine = machine
                             break
             
-            # Calculate earliest start time respecting constraints
             earliest_start = 0
             
-            # Constraint 1: Task must start after its prerequisite (task_id - 1) completes
             if task_id > 1:
                 prerequisite_key = (jobId, task_id - 1)
                 if prerequisite_key in job_task_completion_times:
                     earliest_start = max(earliest_start, job_task_completion_times[prerequisite_key])
             
-            # Constraint 2: Task must start after machine is free
             if new_machine in machine_end_times:
                 earliest_start = max(earliest_start, machine_end_times[new_machine])
             
-            # Schedule task on the chosen machine
             if new_machine not in influenced_timeline:
                 influenced_timeline[new_machine] = []
             
@@ -207,7 +194,6 @@ class individual(object):
     
     def _apply_influence(self, current_timeline, best_timeline, factor):
         
-        # Extract all tasks from current timeline with their execution times
         all_tasks = []
         for machine in current_timeline:
             for task_dict in current_timeline[machine]:
@@ -219,13 +205,11 @@ class individual(object):
                         'current_machine': machine
                     })
         
-        # Sort tasks by job and task_id to process in order
         all_tasks.sort(key=lambda x: (x['jobId'], x['task_id']))
         
-        # Build new timeline respecting all constraints
         influenced_timeline = {}
-        job_task_completion_times = {}  # Track when each (jobId, task_id) finishes
-        machine_end_times = {}  # Track when each machine becomes free
+        job_task_completion_times = {}  
+        machine_end_times = {}  
         
         for task_info in all_tasks:
             jobId = task_info['jobId']
@@ -233,30 +217,24 @@ class individual(object):
             exec_time = task_info['exec_time']
             task_key = (jobId, task_id)
             
-            # Probabilistically adopt machine from best solution
             new_machine = task_info['current_machine']
             if random.random() < factor:
-                # Find this task in best solution and use its machine
                 for machine in best_timeline:
                     for task_dict in best_timeline[machine]:
                         if task_key in task_dict:
                             new_machine = machine
                             break
             
-            # Calculate earliest start time respecting constraints
             earliest_start = 0
             
-            # Constraint 1: Task must start after its prerequisite (task_id - 1) completes
             if task_id > 1:
                 prerequisite_key = (jobId, task_id - 1)
                 if prerequisite_key in job_task_completion_times:
                     earliest_start = max(earliest_start, job_task_completion_times[prerequisite_key])
             
-            # Constraint 2: Task must start after machine is free
             if new_machine in machine_end_times:
                 earliest_start = max(earliest_start, machine_end_times[new_machine])
             
-            # Schedule task on the chosen machine
             if new_machine not in influenced_timeline:
                 influenced_timeline[new_machine] = []
             
@@ -285,7 +263,6 @@ def _cultural_algorithm(generation_callback=None):
         belief.update_normative(population)
         fitness_history.append(belief.situational.fitness)
         
-        # Call the callback if provided (for GUI updates)
         if generation_callback:
             generation_callback(i + 1, belief.situational.fitness)
         else:
@@ -305,7 +282,6 @@ def get_metrics(timeline, exec_time):
     idle_time = 0
     total_execution_time = 0
 
-    # First pass: find makespan and total execution time
     for machine, tasks in timeline.items(): 
         if tasks:
             last_task = tasks[-1]
@@ -318,24 +294,20 @@ def get_metrics(timeline, exec_time):
             for task_dict in tasks:
                 for task in task_dict.values():
                     start , duration = task
-                    total_execution_time += duration  # Add all execution times
+                    total_execution_time += duration 
 
-    # Second pass: calculate idle time (between tasks and at the end of machines)
     for machine, tasks in timeline.items(): 
         if tasks:
             pastValue = 0
-            # Idle time between tasks
             for task_dict in tasks:
                 for task in task_dict.values():
                     start , duration = task
                     idle_time += start - pastValue
                     pastValue = start + duration
             
-            # Idle time at the end of machine execution
             machine_end_time = pastValue
             idle_time += makespan - machine_end_time
 
-    # Calculate utilization
     total_available_time = makespan * len(timeline)
     utilization = (total_execution_time / total_available_time * 100) if total_available_time > 0 else 0
 
@@ -347,24 +319,3 @@ def get_metrics(timeline, exec_time):
 
     return metrics
 
-    
-
-
-# def main():
-#     res = read_dataset('large')
-
-#     start_time = time.time()
-#     bestTimeline, bestFitness, fitnessHistory = cultural_algorithm(res)
-#     end_time = time.time()
-
-#     exectime = end_time - start_time
-#     # print("Best Fitness:", bestFitness)
-#     # print("Best Timeline:", bestTimeline)
-#     # print("Fitness History:", fitnessHistory)
-#     metrics = get_metrics(bestTimeline, exectime)
-
-#     print("makespan:   " + str(metrics['makespan']))
-#     print("idle_time:   " + str(metrics['idle_time']))
-#     print("utilization:   " + str(metrics['utilization']) + "%")
-#     print("exectime:     " + str(metrics["execTime"]))
-# main()

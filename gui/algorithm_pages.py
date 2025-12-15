@@ -14,7 +14,6 @@ from src.backTracking.backTracking import backtracking_algorithm
 
 
 class AlgorithmSelectionPage(tk.Frame):
-    """Page for selecting and running algorithms."""
 
     def __init__(self, parent, machine_count, job_count, jobs_data, on_back_callback=None, on_run_callback=None):
         super().__init__(parent, bg=COLORS['light_bg'])
@@ -28,12 +27,9 @@ class AlgorithmSelectionPage(tk.Frame):
         self.create_widgets()
 
     def create_widgets(self):
-        """Create the algorithm selection interface."""
-        # Main container
         main_container = tk.Frame(self, bg=COLORS['light_bg'], padx=PADDING['xlarge'], pady=PADDING['xlarge'])
         main_container.pack(fill=tk.BOTH, expand=True)
 
-        # Header
         header_frame = tk.Frame(main_container, bg=COLORS['light_bg'])
         header_frame.pack(fill=tk.X, pady=(0, PADDING['large']))
 
@@ -75,11 +71,9 @@ class AlgorithmSelectionPage(tk.Frame):
         )
         summary_label.pack(anchor="w")
 
-        # Algorithm selection cards
         algo_container = tk.Frame(main_container, bg=COLORS['light_bg'])
         algo_container.pack(fill=tk.BOTH, expand=True, pady=(0, PADDING['large']))
 
-        # Left column - Backtracking
         backtrack_card = tk.Frame(
             algo_container,
             bg='white',
@@ -90,7 +84,6 @@ class AlgorithmSelectionPage(tk.Frame):
         )
         backtrack_card.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, PADDING['small']))
 
-        # Right column - Cultural
         cultural_card = tk.Frame(
             algo_container,
             bg='white',
@@ -101,7 +94,6 @@ class AlgorithmSelectionPage(tk.Frame):
         )
         cultural_card.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(PADDING['small'], 0))
 
-        # Backtracking algorithm card content
         backtrack_header = tk.Frame(backtrack_card, bg='white')
         backtrack_header.pack(fill=tk.X, pady=(0, PADDING['medium']))
 
@@ -139,7 +131,6 @@ class AlgorithmSelectionPage(tk.Frame):
         )
         backtrack_features.pack(anchor="w")
 
-        # Cultural algorithm card content
         cultural_header = tk.Frame(cultural_card, bg='white')
         cultural_header.pack(fill=tk.X, pady=(0, PADDING['medium']))
 
@@ -177,7 +168,6 @@ class AlgorithmSelectionPage(tk.Frame):
         )
         cultural_features.pack(anchor="w")
 
-        # Button frame
         button_frame = tk.Frame(main_container, bg=COLORS['light_bg'])
         button_frame.pack(fill=tk.X, pady=PADDING['medium'])
 
@@ -221,24 +211,20 @@ class AlgorithmSelectionPage(tk.Frame):
         back_button.pack(side=tk.LEFT)
 
     def on_run(self):
-        """Handle run algorithm button."""
         algorithm = self.selected_algorithm.get()
         if self.on_run_callback:
             self.on_run_callback(algorithm, self.machine_count, self.job_count, self.jobs_data)
 
     def on_compare(self):
-        """Handle compare both button."""
         if self.on_run_callback:
             self.on_run_callback("compare", self.machine_count, self.job_count, self.jobs_data)
 
     def on_back(self):
-        """Handle back button."""
         if self.on_back_callback:
             self.on_back_callback()
 
 
 class AlgorithmResultsPage(tk.Frame):
-    """Page displaying algorithm results with Gantt chart and statistics."""
 
     def __init__(self, parent, algorithm, machine_count, job_count, jobs_data, on_back_callback=None):
         super().__init__(parent, bg=COLORS['light_bg'])
@@ -250,14 +236,12 @@ class AlgorithmResultsPage(tk.Frame):
         self.timeline = None
         self.metrics = None
         self.is_running = False
-        self.generation_data = []  # Store generation history for display
+        self.generation_data = []  
 
         self.create_widgets()
         self.run_algorithm()
 
     def create_widgets(self):
-        """Create the results display interface."""
-        # Header
         header_frame = tk.Frame(self, bg=COLORS['light_bg'], padx=PADDING['large'], pady=PADDING['medium'])
         header_frame.pack(fill=tk.X)
 
@@ -283,20 +267,15 @@ class AlgorithmResultsPage(tk.Frame):
         )
         back_button.pack(side=tk.RIGHT)
 
-        # For cultural algorithm: different layout with more space for plot
         if self.algorithm == "cultural":
             self._create_cultural_layout()
         else:
-            # For backtracking: keep original layout
             self._create_backtracking_layout()
 
     def _create_backtracking_layout(self):
-        """Layout for backtracking algorithm (Gantt + stats side by side, no plot)."""
-        # Main content - Gantt chart takes most space, stats on right as sidebar
         content_frame = tk.Frame(self, bg=COLORS['light_bg'], padx=PADDING['large'], pady=PADDING['small'])
         content_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Gantt Chart Section (65% of width)
         gantt_frame = tk.Frame(
             content_frame,
             bg='white',
@@ -324,7 +303,6 @@ class AlgorithmResultsPage(tk.Frame):
         )
         self.gantt_canvas.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Statistics Section (35% of width)
         stats_frame = tk.Frame(
             content_frame,
             bg='white',
@@ -332,7 +310,7 @@ class AlgorithmResultsPage(tk.Frame):
             borderwidth=1
         )
         stats_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=False, padx=(PADDING['small'], 0))
-        stats_frame.configure(width=450)  # Wider sidebar for 35%
+        stats_frame.configure(width=450)  
 
         stats_header = tk.Frame(stats_frame, bg=COLORS['secondary'], pady=8)
         stats_header.pack(fill=tk.X)
@@ -346,7 +324,6 @@ class AlgorithmResultsPage(tk.Frame):
         )
         stats_title.pack()
 
-        # Create scrollable text widget for stats
         stats_content_frame = tk.Frame(stats_frame)
         stats_content_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
 
@@ -362,26 +339,21 @@ class AlgorithmResultsPage(tk.Frame):
             padx=8,
             pady=8,
             relief='flat',
-            width=50  # Wider for 35% width section
+            width=50 
         )
         self.stats_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.stats_text.yview)
 
-        # Populate with loading stats
         self._display_loading_stats()
         
-        # No plot for backtracking
         self.plot_canvas_frame = None
         self.fig = None
         self.canvas = None
 
     def _create_cultural_layout(self):
-        """Layout for cultural algorithm (same as backtracking but with toggleable chart/plot)."""
-        # Main content - Visualization takes most space, stats on right as sidebar
         content_frame = tk.Frame(self, bg=COLORS['light_bg'], padx=PADDING['large'], pady=PADDING['small'])
         content_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Statistics Section (35% of width) - Pack first so it takes its space
         stats_frame = tk.Frame(
             content_frame,
             bg='white',
@@ -403,7 +375,6 @@ class AlgorithmResultsPage(tk.Frame):
         )
         stats_title.pack()
 
-        # Create scrollable text widget for stats
         stats_content_frame = tk.Frame(stats_frame)
         stats_content_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
 
@@ -424,7 +395,6 @@ class AlgorithmResultsPage(tk.Frame):
         self.stats_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.stats_text.yview)
 
-        # Left side: Toggleable Visualization (65% of width)
         vis_frame = tk.Frame(
             content_frame,
             bg='white',
@@ -433,7 +403,6 @@ class AlgorithmResultsPage(tk.Frame):
         )
         vis_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, PADDING['small']))
 
-        # Header with title and toggle buttons
         vis_header = tk.Frame(vis_frame, bg=COLORS['primary'], pady=8)
         vis_header.pack(fill=tk.X)
 
@@ -446,7 +415,6 @@ class AlgorithmResultsPage(tk.Frame):
         )
         vis_title.pack(side=tk.LEFT, padx=10)
 
-        # Toggle buttons
         toggle_frame = tk.Frame(vis_header, bg=COLORS['primary'])
         toggle_frame.pack(side=tk.RIGHT, padx=10)
 
@@ -480,11 +448,9 @@ class AlgorithmResultsPage(tk.Frame):
         )
         self.plot_button.pack(side=tk.LEFT, padx=3)
 
-        # Container that will hold either chart or plot
         self.view_container = tk.Frame(vis_frame, bg='white')
         self.view_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Gantt chart view
         self.gantt_frame_alt = tk.Frame(self.view_container, bg='white')
 
         self.gantt_canvas_alt = tk.Canvas(
@@ -494,25 +460,19 @@ class AlgorithmResultsPage(tk.Frame):
         )
         self.gantt_canvas_alt.pack(fill=tk.BOTH, expand=True)
 
-        # Plot view
         self.plot_frame_alt = tk.Frame(self.view_container, bg='white')
 
-        # Create canvas for matplotlib figure
         self.plot_canvas_frame = tk.Frame(self.plot_frame_alt)
         self.plot_canvas_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Placeholder figure (will be replaced when algorithm finishes)
         self.fig = None
         self.canvas = None
 
-        # Populate with loading stats
         self._display_loading_stats()
         
-        # Show chart by default
         self._toggle_view("chart")
 
     def run_algorithm(self):
-        """Run the algorithm in a background thread."""
         if self.is_running:
             return
         
@@ -521,9 +481,7 @@ class AlgorithmResultsPage(tk.Frame):
         thread.start()
 
     def _run_algorithm_thread(self):
-        """Execute algorithm in background thread."""
         try:
-            # Prepare data for the algorithm
             problem_data = self._prepare_problem_data()
             
             if self.algorithm == "cultural":
@@ -539,16 +497,13 @@ class AlgorithmResultsPage(tk.Frame):
                     problem_data,
                     generation_callback=self._on_generation_update
                 )
-                # Convert to fitness-like format for consistency
                 fitness_history = step_history
             else:
                 messagebox.showerror("Error", f"Unknown algorithm: {self.algorithm}")
                 return
             
-            # Get metrics
             self.timeline = timeline
             
-            # Update UI in main thread
             self.after(0, self._display_results)
             
         except Exception as e:
@@ -558,21 +513,15 @@ class AlgorithmResultsPage(tk.Frame):
             traceback.print_exc()
 
     def _on_generation_update(self, step, info):
-        """Callback for generation/step updates from the algorithm."""
-        # Handle both dict info (backtracking) and single fitness value (cultural)
         if isinstance(info, dict):
-            # Backtracking format
             fitness = info.get('best_makespan', 'N/A')
         else:
-            # Cultural algorithm format
             fitness = info
         
         self.generation_data.append((step, fitness))
-        # Update UI in main thread
         self.after(0, self._update_generation_display)
 
     def _prepare_problem_data(self):
-        """Convert GUI data format to algorithm format."""
         problem_data = {
             'machines_count': self.machine_count,
             'total_jobs': self.job_count,
@@ -595,7 +544,6 @@ class AlgorithmResultsPage(tk.Frame):
         return problem_data
 
     def _display_loading_stats(self):
-        """Display loading message."""
         stats_content = f"""ALGORITHM: {self.algorithm.upper()}
 {'=' * 40}
 
@@ -611,7 +559,6 @@ GENERATION EVOLUTION
         self.stats_text.config(state=tk.DISABLED)
 
     def _update_generation_display(self):
-        """Update generation display in real-time."""
         self.stats_text.config(state=tk.NORMAL)
         
         algo_label = "GENERATIONS" if self.algorithm == "cultural" else "SEARCH PROGRESS"
@@ -625,8 +572,7 @@ GENERATION EVOLUTION
 {algo_label}
 {'=' * 40}
 """
-        # Add generation data
-        for step, fitness in self.generation_data[-10:]:  # Show last 10 entries
+        for step, fitness in self.generation_data[-10:]:  
             if isinstance(fitness, float):
                 stats_content += f"{step_name} {step:5d}: {best_name} = {fitness:.2f}\n"
             else:
@@ -634,15 +580,13 @@ GENERATION EVOLUTION
         
         self.stats_text.delete(1.0, tk.END)
         self.stats_text.insert(tk.END, stats_content)
-        self.stats_text.see(tk.END)  # Auto-scroll to bottom
+        self.stats_text.see(tk.END)  
         self.stats_text.config(state=tk.DISABLED)
 
     def _display_results(self):
-        """Display actual results after algorithm execution."""
         if not self.metrics:
             return
         
-        # Check if widget still exists before trying to update it
         try:
             if not self.winfo_exists() or not self.stats_text.winfo_exists():
                 return
@@ -660,7 +604,6 @@ GENERATION EVOLUTION
 {algo_label}
 {'=' * 40}
 """
-        # Add all generations/steps
         for step, fitness in self.generation_data:
             if isinstance(fitness, float):
                 stats_content += f"{step_name} {step:5d}: {best_name} = {fitness:.2f}\n"
@@ -693,41 +636,30 @@ Status: Optimization Complete
             self.stats_text.see(tk.END)  # Scroll to end
             self.stats_text.config(state=tk.DISABLED)
         except tk.TclError:
-            # Widget has been destroyed
             return
         
-        # Draw Gantt chart
         self._draw_gantt_chart()
         
-        # Draw fitness evolution plot
         self._draw_fitness_evolution_plot()
 
     def _toggle_view(self, view_type):
-        """Toggle between chart and plot view."""
         if view_type == "chart":
-            # Show chart, hide plot
             self.gantt_frame_alt.pack(fill=tk.BOTH, expand=True)
             self.plot_frame_alt.pack_forget()
-            # Update button styles
             self.chart_button.config(bg=COLORS['primary_dark'])
             self.plot_button.config(bg=COLORS['text_light'])
         else:
-            # Show plot, hide chart
             self.gantt_frame_alt.pack_forget()
             self.plot_frame_alt.pack(fill=tk.BOTH, expand=True)
-            # Update button styles
             self.chart_button.config(bg=COLORS['text_light'])
             self.plot_button.config(bg=COLORS['primary_dark'])
 
     def _draw_gantt_chart(self):
-        """Draw a simple Gantt chart representation."""
         if not self.timeline:
             return
         
-        # Use alternate canvas for cultural algorithm, regular for backtracking
         canvas = self.gantt_canvas_alt if self.algorithm == "cultural" else self.gantt_canvas
         
-        # Check if widget still exists
         try:
             if not canvas.winfo_exists():
                 return
@@ -739,13 +671,11 @@ Status: Optimization Complete
         except tk.TclError:
             return
         
-        # Get timeline dimensions
         makespan = max(max(
             list(task_dict.values())[0][0] + list(task_dict.values())[0][1]
             for task_dict in tasks
         ) for tasks in self.timeline.values() if tasks)
         
-        # Canvas dimensions
         canvas_width = canvas.winfo_width()
         canvas_height = canvas.winfo_height()
         
@@ -753,7 +683,6 @@ Status: Optimization Complete
             canvas_width = 600
             canvas_height = 300
         
-        # Margins
         left_margin = 80
         top_margin = 40
         right_margin = 20
@@ -762,24 +691,20 @@ Status: Optimization Complete
         chart_width = canvas_width - left_margin - right_margin
         chart_height = canvas_height - top_margin - bottom_margin
         
-        # Draw title
         canvas.create_text(
             canvas_width // 2, 20,
             text="Gantt Chart",
             font=FONTS['subheader']
         )
         
-        # Colors for different machines
         colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2']
         
         machines = sorted(self.timeline.keys())
         machine_height = chart_height / len(machines) if machines else 0
         
-        # Draw machines and tasks
         for machine_idx, machine in enumerate(machines):
             y_pos = top_margin + machine_idx * machine_height
             
-            # Draw machine label
             canvas.create_text(
                 left_margin - 10, y_pos + machine_height / 2,
                 text=f"M{machine}",
@@ -787,7 +712,6 @@ Status: Optimization Complete
                 anchor='e'
             )
             
-            # Draw tasks
             for task_dict in self.timeline[machine]:
                 for (job_id, task_id), (start_time, duration) in task_dict.items():
                     x_start = left_margin + (start_time / makespan) * chart_width
@@ -801,7 +725,6 @@ Status: Optimization Complete
                         fill=color, outline='black', width=1
                     )
                     
-                    # Add label if space permits
                     if x_width > 30:
                         canvas.create_text(
                             x_start + x_width / 2, y_pos + machine_height / 2,
@@ -810,14 +733,12 @@ Status: Optimization Complete
                             fill='white'
                         )
         
-        # Draw time axis
         canvas.create_line(
             left_margin, top_margin + chart_height,
             left_margin + chart_width, top_margin + chart_height,
             width=2
         )
         
-        # Draw time labels
         time_intervals = 5
         for i in range(time_intervals + 1):
             time_val = (makespan / time_intervals) * i
@@ -831,11 +752,9 @@ Status: Optimization Complete
 
     def _draw_fitness_evolution_plot(self):
         """Draw fitness evolution plot using matplotlib (only for cultural algorithm)."""
-        # Only draw for cultural algorithm
         if self.algorithm != "cultural" or not self.generation_data:
             return
         
-        # Check if widget still exists
         try:
             if not self.plot_canvas_frame or not self.plot_canvas_frame.winfo_exists():
                 return
@@ -843,16 +762,13 @@ Status: Optimization Complete
             return
         
         try:
-            # Extract data
             generations = [step for step, _ in self.generation_data]
             fitness_values = [fit if isinstance(fit, (int, float)) else float(str(fit).split('=')[-1].strip()) 
                             for _, fit in self.generation_data]
             
-            # Create figure with matplotlib
             self.fig = Figure(figsize=(12, 5), dpi=100)
             ax = self.fig.add_subplot(111)
             
-            # Plot
             ax.plot(generations, fitness_values, 'b-o', linewidth=2, markersize=5)
             ax.set_xlabel('Generation', fontsize=12, fontweight='bold')
             ax.set_ylabel('Best Fitness (ms)', fontsize=12, fontweight='bold')
@@ -860,14 +776,11 @@ Status: Optimization Complete
             ax.grid(True, alpha=0.3, linestyle='--')
             ax.set_facecolor('#f8f9fa')
             
-            # Add some styling
             self.fig.patch.set_facecolor('white')
             
-            # Clear previous canvas if exists
             if self.canvas:
                 self.canvas.get_tk_widget().destroy()
             
-            # Create canvas
             self.canvas = FigureCanvasTkAgg(self.fig, master=self.plot_canvas_frame)
             self.canvas.draw()
             self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
@@ -878,13 +791,11 @@ Status: Optimization Complete
             traceback.print_exc()
 
     def on_back(self):
-        """Handle back button."""
         if self.on_back_callback:
             self.on_back_callback()
 
 
 class AlgorithmComparisonPage(tk.Frame):
-    """Page displaying comparison between Backtracking and Cultural algorithms."""
 
     def __init__(self, parent, machine_count, job_count, jobs_data, on_back_callback=None):
         super().__init__(parent, bg=COLORS['light_bg'])
@@ -893,7 +804,6 @@ class AlgorithmComparisonPage(tk.Frame):
         self.jobs_data = jobs_data
         self.on_back_callback = on_back_callback
         
-        # Store results
         self.backtrack_metrics = None
         self.cultural_metrics = None
         self.backtrack_timeline = None
@@ -906,8 +816,6 @@ class AlgorithmComparisonPage(tk.Frame):
         self.run_comparison()
 
     def create_widgets(self):
-        """Create the comparison interface."""
-        # Header
         header_frame = tk.Frame(self, bg=COLORS['light_bg'], padx=PADDING['large'], pady=PADDING['medium'])
         header_frame.pack(fill=tk.X)
 
@@ -933,7 +841,6 @@ class AlgorithmComparisonPage(tk.Frame):
         )
         back_button.pack(side=tk.RIGHT)
 
-        # Problem summary
         summary_card = tk.Frame(
             self,
             bg='white',
@@ -977,7 +884,6 @@ class AlgorithmComparisonPage(tk.Frame):
         )
         table_title.pack()
 
-        # Create treeview for comparison
         columns = ("Metric", "Backtracking", "Cultural", "Winner")
         self.comparison_tree = ttk.Treeview(
             table_card,
@@ -987,7 +893,6 @@ class AlgorithmComparisonPage(tk.Frame):
             style="Custom.Treeview"
         )
 
-        # Configure style for better appearance
         style = ttk.Style()
         style.configure("Custom.Treeview",
                        background="white",
@@ -999,7 +904,6 @@ class AlgorithmComparisonPage(tk.Frame):
                        foreground=COLORS['text_dark'],
                        font=('Arial', 10, 'bold'))
 
-        # Define column headings and widths
         self.comparison_tree.heading("Metric", text="Performance Metric")
         self.comparison_tree.column("Metric", width=200, anchor="w")
 
@@ -1012,7 +916,6 @@ class AlgorithmComparisonPage(tk.Frame):
         self.comparison_tree.heading("Winner", text="Winner")
         self.comparison_tree.column("Winner", width=100, anchor="center")
 
-        # Initialize with pending status
         self.metric_rows = {}
         metrics = [
             ("Makespan (ms)", "Running...", "Running...", "..."),
@@ -1025,14 +928,12 @@ class AlgorithmComparisonPage(tk.Frame):
             row_id = self.comparison_tree.insert("", "end", values=metric)
             self.metric_rows[metric[0]] = row_id
 
-        # Add scrollbar
         scrollbar = ttk.Scrollbar(table_card, orient="vertical", command=self.comparison_tree.yview)
         self.comparison_tree.configure(yscrollcommand=scrollbar.set)
 
         self.comparison_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=10)
 
-        # Gantt charts section
         gantt_label = tk.Label(
             self,
             text="Schedule Visualization - Gantt Charts",
@@ -1045,7 +946,6 @@ class AlgorithmComparisonPage(tk.Frame):
         gantt_container = tk.Frame(self, bg=COLORS['light_bg'])
         gantt_container.pack(fill=tk.BOTH, expand=True, padx=PADDING['large'], pady=(0, PADDING['medium']))
 
-        # Left Gantt chart - Backtracking
         backtrack_frame = tk.Frame(gantt_container, bg='white', relief='solid', borderwidth=1)
         backtrack_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, PADDING['small']))
 
@@ -1066,10 +966,8 @@ class AlgorithmComparisonPage(tk.Frame):
         )
         self.backtrack_gantt.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        # Add scrollwheel support to backtracking canvas
         self._setup_canvas_scrollwheel(self.backtrack_gantt, backtrack_frame)
 
-        # Right Gantt chart - Cultural
         cultural_frame = tk.Frame(gantt_container, bg='white', relief='solid', borderwidth=1)
         cultural_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(PADDING['small'], 0))
 
@@ -1090,17 +988,14 @@ class AlgorithmComparisonPage(tk.Frame):
         )
         self.cultural_gantt.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        # Add scrollwheel support to cultural canvas
         self._setup_canvas_scrollwheel(self.cultural_gantt, cultural_frame)
 
     def run_comparison(self):
         """Run both algorithms in parallel."""
         self.is_running = True
         
-        # Create problem data dict for algorithms using the same format as results page
         problem_data = self._prepare_problem_data()
         
-        # Run backtracking in background thread
         self.backtrack_thread = threading.Thread(
             target=self._run_backtracking,
             args=(problem_data,),
@@ -1108,7 +1003,6 @@ class AlgorithmComparisonPage(tk.Frame):
         )
         self.backtrack_thread.start()
         
-        # Run cultural algorithm in background thread
         self.cultural_thread = threading.Thread(
             target=self._run_cultural,
             args=(problem_data,),
@@ -1116,11 +1010,9 @@ class AlgorithmComparisonPage(tk.Frame):
         )
         self.cultural_thread.start()
         
-        # Start checking for completion
         self.check_completion()
 
     def _prepare_problem_data(self):
-        """Convert GUI data format to algorithm format."""
         problem_data = {
             'machines_count': self.machine_count,
             'total_jobs': self.job_count,
@@ -1143,14 +1035,12 @@ class AlgorithmComparisonPage(tk.Frame):
         return problem_data
 
     def _run_backtracking(self, problem_data):
-        """Run backtracking algorithm."""
         try:
             start_time = time.time()
             timeline, metrics, _ = backtracking_algorithm(problem_data)
             exec_time = time.time() - start_time
             self.backtrack_timeline = timeline
             self.backtrack_metrics = metrics
-            # Draw Gantt chart
             self.after(0, self._draw_backtrack_gantt)
         except Exception as e:
             print(f"Backtracking error: {e}")
@@ -1159,14 +1049,12 @@ class AlgorithmComparisonPage(tk.Frame):
             self.backtrack_metrics = None
 
     def _run_cultural(self, problem_data):
-        """Run cultural algorithm."""
         try:
             start_time = time.time()
             timeline, _, _ = cultural_algorithm(problem_data)
             exec_time = time.time() - start_time
             self.cultural_timeline = timeline
             self.cultural_metrics = cultural_get_metrics(timeline, exec_time)
-            # Draw Gantt chart
             self.after(0, self._draw_cultural_gantt)
         except Exception as e:
             print(f"Cultural error: {e}")
@@ -1175,24 +1063,19 @@ class AlgorithmComparisonPage(tk.Frame):
             self.cultural_metrics = None
 
     def check_completion(self):
-        """Check if both algorithms have completed and update display."""
-        # Update display if either algorithm has completed
         if self.backtrack_metrics is not None:
             self._update_backtrack_display()
         
         if self.cultural_metrics is not None:
             self._update_cultural_display()
         
-        # Both algorithms completed
         if self.backtrack_metrics is not None and self.cultural_metrics is not None:
             self._update_winners()
             self.is_running = False
         elif self.is_running:
-            # Still running, check again in 500ms
             self.after(500, self.check_completion)
 
     def _update_backtrack_display(self):
-        """Update backtracking metrics in the table."""
         if not self.backtrack_metrics:
             return
         
@@ -1207,14 +1090,12 @@ class AlgorithmComparisonPage(tk.Frame):
             if metric_name in self.metric_rows:
                 row_id = self.metric_rows[metric_name]
                 current_values = self.comparison_tree.item(row_id)['values']
-                # Update backtracking column (index 1), keep others as is
                 self.comparison_tree.item(
                     row_id,
                     values=(current_values[0], metric_value, current_values[2], current_values[3])
                 )
 
     def _update_cultural_display(self):
-        """Update cultural metrics in the table."""
         if not self.cultural_metrics:
             return
         
@@ -1236,11 +1117,9 @@ class AlgorithmComparisonPage(tk.Frame):
                 )
 
     def _update_winners(self):
-        """Update winner column when both algorithms have completed."""
         if not self.backtrack_metrics or not self.cultural_metrics:
             return
         
-        # Extract numeric values for comparison
         backtrack_makespan = float(self.backtrack_metrics['makespan'].split()[0])
         cultural_makespan = float(self.cultural_metrics['makespan'].split()[0])
         
@@ -1253,7 +1132,6 @@ class AlgorithmComparisonPage(tk.Frame):
         backtrack_time = float(self.backtrack_metrics['execTime'].split()[0])
         cultural_time = float(self.cultural_metrics['execTime'].split()[0])
         
-        # Determine winners (lower is better for makespan/idle, higher is better for utilization)
         winners = {
             "Makespan (ms)": "Backtracking" if backtrack_makespan < cultural_makespan else "Cultural",
             "Total Idle Time (ms)": "Backtracking" if backtrack_idle < cultural_idle else "Cultural",
@@ -1261,20 +1139,16 @@ class AlgorithmComparisonPage(tk.Frame):
             "Execution Time (s)": "Cultural" if cultural_time < backtrack_time else "Backtracking",
         }
         
-        # Update winner column for each metric
         for metric_name, winner in winners.items():
             if metric_name in self.metric_rows:
                 row_id = self.metric_rows[metric_name]
                 current_values = self.comparison_tree.item(row_id)['values']
-                # Update winner column (index 3), keep others as is
                 self.comparison_tree.item(
                     row_id,
                     values=(current_values[0], current_values[1], current_values[2], winner)
                 )
 
     def _update_comparison_display(self):
-        """Update the comparison table with actual results."""
-        # Extract numeric values for comparison
         backtrack_makespan = float(self.backtrack_metrics['makespan'].split()[0])
         cultural_makespan = float(self.cultural_metrics['makespan'].split()[0])
         
@@ -1287,13 +1161,11 @@ class AlgorithmComparisonPage(tk.Frame):
         backtrack_time = float(self.backtrack_metrics['execTime'].split()[0])
         cultural_time = float(self.cultural_metrics['execTime'].split()[0])
         
-        # Determine winners (lower is better for makespan/idle, higher is better for utilization)
         makespan_winner = "Backtracking" if backtrack_makespan < cultural_makespan else "Cultural"
         idle_winner = "Backtracking" if backtrack_idle < cultural_idle else "Cultural"
         util_winner = "Cultural" if cultural_util > backtrack_util else "Backtracking"
         time_winner = "Cultural" if cultural_time < backtrack_time else "Backtracking"
         
-        # Update table rows
         metrics_data = [
             ("Makespan (ms)", self.backtrack_metrics['makespan'], self.cultural_metrics['makespan'], makespan_winner),
             ("Total Idle Time (ms)", self.backtrack_metrics['idle_time'], self.cultural_metrics['idle_time'], idle_winner),
@@ -1309,7 +1181,6 @@ class AlgorithmComparisonPage(tk.Frame):
                 )
 
     def _draw_backtrack_gantt(self):
-        """Draw Gantt chart for backtracking algorithm."""
         if not self.backtrack_timeline:
             return
         
@@ -1317,7 +1188,6 @@ class AlgorithmComparisonPage(tk.Frame):
         self._draw_gantt_on_canvas(self.backtrack_gantt, self.backtrack_timeline, "Backtracking")
 
     def _draw_cultural_gantt(self):
-        """Draw Gantt chart for cultural algorithm."""
         if not self.cultural_timeline:
             return
         
@@ -1325,11 +1195,9 @@ class AlgorithmComparisonPage(tk.Frame):
         self._draw_gantt_on_canvas(self.cultural_gantt, self.cultural_timeline, "Cultural")
 
     def _draw_gantt_on_canvas(self, canvas, timeline, algorithm_name):
-        """Generic method to draw Gantt chart on a canvas."""
         if not timeline:
             return
         
-        # Get canvas dimensions
         canvas_width = canvas.winfo_width()
         canvas_height = canvas.winfo_height()
         
@@ -1338,7 +1206,6 @@ class AlgorithmComparisonPage(tk.Frame):
         if canvas_height <= 1:
             canvas_height = 200
         
-        # Get timeline dimensions
         try:
             max_time = max(
                 max(
@@ -1350,7 +1217,6 @@ class AlgorithmComparisonPage(tk.Frame):
         except (ValueError, IndexError, KeyError):
             max_time = 100
         
-        # Layout parameters
         margin_left = 40
         margin_right = 20
         margin_top = 20
@@ -1359,38 +1225,31 @@ class AlgorithmComparisonPage(tk.Frame):
         chart_width = canvas_width - margin_left - margin_right
         chart_height = canvas_height - margin_top - margin_bottom
         
-        # Time scale
         time_scale = chart_width / max(max_time, 1)
         
-        # Machine height
         num_machines = len(timeline)
         machine_height = chart_height / max(num_machines, 1)
         
-        # Color palette for jobs
         colors = [
             '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
             '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B88B', '#ABEBC6'
         ]
         
-        # Draw machines and tasks
         for machine_idx, (machine, tasks) in enumerate(sorted(timeline.items())):
             y_pos = margin_top + machine_idx * machine_height
             
-            # Draw machine label
             canvas.create_text(
                 margin_left - 10, y_pos + machine_height / 2,
                 text=f"M{machine}", anchor="e", font=(FONTS['small'][0], 8),
                 fill=COLORS['text_dark']
             )
             
-            # Draw machine bar background
             canvas.create_rectangle(
                 margin_left, y_pos,
                 canvas_width + margin_left, y_pos + machine_height - 2,
                 fill='#F0F0F0', outline='#CCCCCC'
             )
             
-            # Draw tasks
             for task_dict in tasks:
                 for (job_id, task_id), (start_time, duration) in task_dict.items():
                     x1 = margin_left + start_time * time_scale
@@ -1398,16 +1257,13 @@ class AlgorithmComparisonPage(tk.Frame):
                     y1 = y_pos + 2
                     y2 = y_pos + machine_height - 2
                     
-                    # Get color for job
                     color = colors[(job_id - 1) % len(colors)]
                     
-                    # Draw task rectangle
                     canvas.create_rectangle(
                         x1, y1, x2, y2,
                         fill=color, outline='#333333', width=1
                     )
                     
-                    # Draw task label if there's enough space
                     if x2 - x1 > 30:
                         canvas.create_text(
                             (x1 + x2) / 2, (y1 + y2) / 2,
@@ -1415,7 +1271,6 @@ class AlgorithmComparisonPage(tk.Frame):
                             font=(FONTS['small'][0], 7), fill='white'
                         )
         
-        # Draw time axis
         axis_y = margin_top + chart_height
         canvas.create_line(
             margin_left, axis_y,
@@ -1423,7 +1278,6 @@ class AlgorithmComparisonPage(tk.Frame):
             fill='#333333', width=2
         )
         
-        # Draw time labels
         num_ticks = 5
         for i in range(num_ticks + 1):
             x = margin_left + (i / num_ticks) * chart_width
@@ -1437,18 +1291,14 @@ class AlgorithmComparisonPage(tk.Frame):
 
     def _setup_canvas_scrollwheel(self, canvas, parent_frame):
         """Setup scrollwheel support for a canvas with vertical scrolling."""
-        # Create a scrollbar for the canvas
         scrollbar = ttk.Scrollbar(parent_frame, orient="vertical", command=canvas.yview)
         canvas.configure(yscrollcommand=scrollbar.set)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Create scroll region based on canvas content
         canvas.update_idletasks()
         
-        # Bind mouse wheel events
         def _on_mousewheel(event):
             try:
-                # Scroll vertically on Windows/macOS
                 scroll_amount = int(-1 * (event.delta / 120) * 3)
                 canvas.yview_scroll(scroll_amount, "units")
             except tk.TclError:
@@ -1456,7 +1306,6 @@ class AlgorithmComparisonPage(tk.Frame):
         
         def _on_mousewheel_linux(event):
             try:
-                # Scroll vertically on Linux
                 if event.num == 5:  # Scroll down
                     canvas.yview_scroll(3, "units")
                 elif event.num == 4:  # Scroll up
@@ -1464,7 +1313,6 @@ class AlgorithmComparisonPage(tk.Frame):
             except tk.TclError:
                 pass
         
-        # Bind events
         canvas.bind("<MouseWheel>", _on_mousewheel)
         canvas.bind("<Button-4>", _on_mousewheel_linux)
         canvas.bind("<Button-5>", _on_mousewheel_linux)
@@ -1473,3 +1321,4 @@ class AlgorithmComparisonPage(tk.Frame):
         """Handle back button."""
         if self.on_back_callback:
             self.on_back_callback()
+lf.on_back_callback()

@@ -9,7 +9,6 @@ from .constants import MAX_MACHINES, MAX_JOBS, MAX_TOTAL_TASKS, MAX_TASKS_PER_JO
 
 
 class BasicInputFrame(tk.Frame):
-    """Frame for inputting machine count and job count."""
 
     def __init__(self, parent, on_submit_callback=None):
         super().__init__(parent, bg=COLORS['light_bg'])
@@ -20,12 +19,9 @@ class BasicInputFrame(tk.Frame):
         self.create_widgets()
 
     def create_widgets(self):
-        """Create and layout widgets for basic inputs."""
-        # Main container with better spacing
         main_container = tk.Frame(self, bg=COLORS['light_bg'], padx=PADDING['xlarge'], pady=PADDING['xlarge'])
         main_container.pack(expand=True, fill=tk.BOTH)
 
-        # Title section
         title_frame = tk.Frame(main_container, bg=COLORS['light_bg'])
         title_frame.pack(pady=(0, PADDING['xlarge']))
 
@@ -47,7 +43,6 @@ class BasicInputFrame(tk.Frame):
         )
         subtitle_label.pack(pady=(5, 0))
 
-        # Input container with card-like appearance
         input_card = tk.Frame(
             main_container,
             bg='white',
@@ -58,7 +53,6 @@ class BasicInputFrame(tk.Frame):
         )
         input_card.pack(fill=tk.X, pady=PADDING['medium'])
 
-        # Machine Count
         machine_frame = tk.Frame(input_card, bg='white')
         machine_frame.pack(fill=tk.X, pady=PADDING['medium'])
 
@@ -93,7 +87,6 @@ class BasicInputFrame(tk.Frame):
         )
         machine_limit_label.pack(side=tk.LEFT)
 
-        # Job Count
         job_frame = tk.Frame(input_card, bg='white')
         job_frame.pack(fill=tk.X, pady=PADDING['medium'])
 
@@ -128,7 +121,6 @@ class BasicInputFrame(tk.Frame):
         )
         job_limit_label.pack(side=tk.LEFT)
 
-        # Submit Button
         button_frame = tk.Frame(main_container, bg=COLORS['light_bg'])
         button_frame.pack(pady=PADDING['xlarge'])
 
@@ -147,7 +139,6 @@ class BasicInputFrame(tk.Frame):
         )
         submit_button.pack()
 
-        # Add hover effect
         def on_enter(e):
             submit_button['bg'] = COLORS['primary_dark']
 
@@ -158,7 +149,6 @@ class BasicInputFrame(tk.Frame):
         submit_button.bind("<Leave>", on_leave)
 
     def on_submit(self):
-        """Handle submission of basic inputs."""
         machine_count = self.machine_count_var.get()
         job_count = self.job_count_var.get()
 
@@ -182,7 +172,6 @@ class BasicInputFrame(tk.Frame):
             messagebox.showerror("Invalid Input", f"Number of machines ({machine_count}) cannot exceed number of jobs ({job_count})")
             return
 
-        # Print to console
         print("\n" + "="*50)
         print("BASIC CONFIGURATION SUBMITTED")
         print("="*50)
@@ -194,12 +183,10 @@ class BasicInputFrame(tk.Frame):
             self.on_submit_callback(machine_count, job_count)
 
     def get_values(self):
-        """Get current values."""
         return self.machine_count_var.get(), self.job_count_var.get()
 
 
 class TaskInputFrame(tk.Frame):
-    """Frame for inputting task details in a table format."""
 
     def __init__(self, parent, machine_count, job_count, on_submit_callback=None):
         super().__init__(parent, bg=COLORS['light_bg'])
@@ -213,8 +200,6 @@ class TaskInputFrame(tk.Frame):
         self.create_widgets()
 
     def create_widgets(self):
-        """Create task input table."""
-        # Header section
         header_frame = tk.Frame(self, bg=COLORS['light_bg'], padx=PADDING['large'], pady=PADDING['medium'])
         header_frame.pack(fill=tk.X)
 
@@ -236,7 +221,6 @@ class TaskInputFrame(tk.Frame):
         )
         info_label.pack(anchor="w", pady=(5, 0))
 
-        # Create scrollable frame for tasks
         canvas_container = tk.Frame(self, bg=COLORS['light_bg'], padx=PADDING['medium'])
         canvas_container.pack(fill=tk.BOTH, expand=True, pady=PADDING['small'])
 
@@ -252,7 +236,6 @@ class TaskInputFrame(tk.Frame):
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=canvas.winfo_reqwidth())
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        # Bind mouse wheel scroll to canvas
         def _on_mousewheel(event):
             try:
                 canvas.yview_scroll(int(-1*(event.delta/120)), "units")
@@ -268,20 +251,16 @@ class TaskInputFrame(tk.Frame):
             except tk.TclError:
                 pass  # Canvas widget has been destroyed
         
-        # Windows and macOS
         canvas.bind_all("<MouseWheel>", _on_mousewheel)
-        # Linux
         canvas.bind_all("<Button-4>", _on_mousewheel_linux)
         canvas.bind_all("<Button-5>", _on_mousewheel_linux)
 
-        # Create task input rows
         for job_idx in range(self.job_count):
             self.create_job_section(scrollable_frame, job_idx)
 
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        # Buttons frame
         button_frame = tk.Frame(self, bg=COLORS['light_bg'], padx=PADDING['large'], pady=PADDING['medium'])
         button_frame.pack(fill=tk.X, side=tk.BOTTOM)
 
@@ -312,8 +291,6 @@ class TaskInputFrame(tk.Frame):
         reset_button.pack(side=tk.LEFT)
 
     def create_job_section(self, parent, job_idx):
-        """Create input section for a single job."""
-        # Job card
         job_card = tk.Frame(
             parent,
             bg='white',
@@ -324,7 +301,6 @@ class TaskInputFrame(tk.Frame):
         )
         job_card.pack(fill=tk.X, pady=PADDING['small'])
 
-        # Job header
         job_header = tk.Frame(job_card, bg='white')
         job_header.pack(fill=tk.X, pady=(0, PADDING['medium']))
 
@@ -337,7 +313,6 @@ class TaskInputFrame(tk.Frame):
         )
         job_title.pack(side=tk.LEFT)
 
-        # Task count controls
         task_count_frame = tk.Frame(job_header, bg='white')
         task_count_frame.pack(side=tk.RIGHT)
 
@@ -362,11 +337,9 @@ class TaskInputFrame(tk.Frame):
         )
         task_spinbox.pack(side=tk.LEFT)
 
-        # Tasks table
         tasks_container = tk.Frame(job_card, bg='white')
         tasks_container.pack(fill=tk.X)
 
-        # Table headers
         header_frame = tk.Frame(tasks_container, bg=COLORS['primary'])
         header_frame.pack(fill=tk.X, pady=(0, 2))
 
@@ -381,16 +354,14 @@ class TaskInputFrame(tk.Frame):
                 fg='white',
                 padx=10,
                 pady=8,
-                width=width // 8  # Approximate character width
+                width=width // 8  
             )
             header_label.grid(row=0, column=col, sticky="ew", padx=(2 if col == 0 else 0, 2))
             header_frame.grid_columnconfigure(col, weight=1)
 
-        # Store all widgets for this job
         self.task_entries[job_idx] = {'entries': [], 'labels': [], 'container': tasks_container, 'entries_frame': None}
         self.update_task_entries(tasks_container, job_idx, task_count_var, initial=True)
 
-        # Bind spinbox to update tasks
         def on_task_count_change(*args):
             if not self.is_resetting:
                 try:
@@ -401,7 +372,6 @@ class TaskInputFrame(tk.Frame):
         task_count_var.trace("w", on_task_count_change)
 
     def update_task_entries(self, tasks_container, job_idx, task_count_var, initial=False):
-        """Update task entry fields based on task count."""
         try:
             new_task_count = task_count_var.get()
         except tk.TclError:
@@ -409,16 +379,13 @@ class TaskInputFrame(tk.Frame):
 
         current_count = len(self.task_entries[job_idx]['entries'])
         
-        # Get or create the entries frame
         if initial or 'entries_frame' not in self.task_entries[job_idx]:
-            # Create entry fields container
             entries_frame = tk.Frame(tasks_container, bg='white')
             entries_frame.pack(fill=tk.X)
             self.task_entries[job_idx]['entries_frame'] = entries_frame
         else:
             entries_frame = self.task_entries[job_idx]['entries_frame']
 
-        # If task count decreased, remove extra widgets
         if new_task_count < current_count:
             for task_idx in range(new_task_count, current_count):
                 self.task_entries[job_idx]['entries'][task_idx].destroy()
@@ -427,9 +394,7 @@ class TaskInputFrame(tk.Frame):
             self.task_entries[job_idx]['labels'] = self.task_entries[job_idx]['labels'][:new_task_count]
             return
 
-        # If task count increased, add new widgets
         for task_idx in range(current_count, new_task_count):
-            # Task number label
             task_num_label = tk.Label(
                 entries_frame,
                 text=f"Task {task_idx + 1}",
@@ -443,7 +408,6 @@ class TaskInputFrame(tk.Frame):
             )
             task_num_label.grid(row=task_idx, column=0, sticky="ew", padx=(2, 1), pady=1)
 
-            # Execution time entry
             time_entry = tk.Entry(
                 entries_frame,
                 width=15,
@@ -462,7 +426,6 @@ class TaskInputFrame(tk.Frame):
             self.task_entries[job_idx]['labels'].append(task_num_label)
 
     def get_all_tasks(self):
-        """Retrieve all task data from the table."""
         jobs_data = []
         total_tasks = 0
 
@@ -505,7 +468,6 @@ class TaskInputFrame(tk.Frame):
         """Handle submission of all tasks."""
         jobs_data = self.get_all_tasks()
         if jobs_data and self.on_submit_callback:
-            # Print to console
             print("\n" + "="*50)
             print("TASK CONFIGURATION SUBMITTED")
             print("="*50)
@@ -522,14 +484,11 @@ class TaskInputFrame(tk.Frame):
             self.on_submit_callback(self.machine_count, self.job_count, jobs_data)
 
     def reset_values(self):
-        """Reset all entries and task counts to default values."""
         self.is_resetting = True
         try:
             for job_idx in self.task_count_vars:
-                # Reset task count to 1
                 self.task_count_vars[job_idx].set(1)
                 if job_idx in self.task_entries:
-                    # Explicitly update the entries to reflect the change
                     tasks_container = self.task_entries[job_idx]['container']
                     self.update_task_entries(tasks_container, job_idx, self.task_count_vars[job_idx])
         finally:
