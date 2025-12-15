@@ -1321,4 +1321,3 @@ class AlgorithmComparisonPage(tk.Frame):
         """Handle back button."""
         if self.on_back_callback:
             self.on_back_callback()
-lf.on_back_callback()
